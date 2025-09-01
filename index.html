@@ -206,7 +206,7 @@ function regeneratePreview(rows){
     if(r.statusObj.label!=="Aman") adaPeringatan=true
     return `${i+1}. ${r.barang} → ${r.tersedia} | ${r.statusObj.icon} ${r.statusObj.label}`
   })
-  const footer = adaPeringatan ? "⚠️ Mohon cek stok yang menipis.\nInfo: alamat website" : "✅ Semua stok aman, selamat menjalani usaha!"
+  const footer = adaPeringatan ? "⚠️ Mohon cek stok yang menipis.\nInfo: https://ramadani1t.github.io/DB-Stock-Bot-Reminder" : "✅ Semua stok aman, selamat menjalani usaha!"
   document.getElementById("waPreview").value = [header,"",...lines,"",footer].join("\n")
 }
 
