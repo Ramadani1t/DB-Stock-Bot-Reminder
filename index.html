@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laporan Stok Barang – AJAX Google Sheet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css" />
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/id.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/833/833314.png" />
+  <style>
+    .status-badge{display:inline-flex;align-items:center;gap:.5rem;padding:.25rem .5rem;border-radius:9999px;font-weight:600}
+    .status-aman{background:#e7f8ef}
+    .status-waspada{background:#fff6e6}
+    .status-bahaya{background:#ffeaea}
+    .dt-img-name{display:flex;align-items:center;gap:0.75rem}
+    .dt-img-name img {
+      width: 40px; 
+      height: 40px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-6xl mx-auto p-6">
+  <header class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold">📦 Laporan Stok Barang</h1>
+      <p id="last-updated" class="text-sm text-slate-500">Memuat data…</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <select id="statusFilter" class="border rounded-lg px-3 py-2 bg-white text-sm">
+        <option value="">Semua Status</option>
+        <option value="Aman">🟢 Aman</option>
+        <option value="Waspada">🟡 Waspada</option>
+        <option value="Bahaya">🔴 Bahaya</option>
+      </select>
+      <button id="refreshBtn" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-sm">↻ Muat Ulang</button>
+    </div>
+  </header>
+
+  <section class="grid md:grid-cols-3 gap-4 mb-6">
+    <div class="rounded-2xl bg-white shadow p-4">
+      <div class="text-xs text-slate-500">Total Item</div>
+      <div id="statTotal" class="text-2xl font-bold">-</div>
+    </div>
+    <div class="rounded-2xl bg-white shadow p-4">
+      <div class="text-xs text-slate-500">Item Aman</div>
+      <div id="statAman" class="text-2xl font-bold">-</div>
+    </div>
+    <div class="rounded-2xl bg-white shadow p-4">
+      <div class="text-xs text-slate-500">Perlu Perhatian (Waspada/Bahaya)</div>
+      <div id="statAlert" class="text-2xl font-bold">-</div>
+    </div>
+  </section>
+
+  <section class="grid md:grid-cols-3 gap-6 mb-8">
+    <div class="md:col-span-2 rounded-2xl bg-white shadow p-4">
+      <table id="stokTable" class="display w-full"></table>
+    </div>
+    <div class="rounded-2xl bg-white shadow p-4">
+      <h3 class="font-semibold mb-3">Ringkasan Status</h3>
+      <canvas id="ringkasanChart" height="260"></canvas>
+      <hr class="my-4" />
+      <h3 class="font-semibold mb-2">Preview Pesan WhatsApp</h3>
+      <textarea id="waPreview" class="w-full h-48 border rounded-lg p-3 text-sm" readonly></textarea>
+      <div class="flex gap-2 mt-2">
+        <button id="copyBtn" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm">Salin Pesan</button>
+        <button id="regenBtn" class="px-3 py-2 rounded-lg bg-slate-200 text-slate-800 text-sm">Buat Ulang</button>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-xs text-slate-500">Made for Rama • Data via Google Apps Script</footer>
+</div>
+
+<script>
+// ================== KONFIGURASI ==================
+const API_URL = "https://script.google.com/macros/s/AKfycbxh2pc5CNzRfVMcT0Cnya7E6jPYNLljTKjxy4a3WqivlKIA3uyIkf5PRy-G4IY9Qg-_fg/exec";
+
+const RULES = {
+  "pack":    { aman: 2, waspada: 1, bahaya: 0 },
+  "kantong":{ aman: 2, waspada: 1, bahaya: 0 },
+  "ml":      { aman: 200, waspada: 90, bahaya: 30 },
+  "sheets": { aman: 80, waspada: 40, bahaya: 30 },
+  "pcs":    { aman: 30, waspada: 20, bahaya: 10 }
+}
+
+function parseQty(str){
+  if (!str) return {qty:0, unit:""}
+  let parts = str.trim().split(" ")
+  let qty = parseInt(parts[0]) || 0
+  let unit = parts.slice(1).join(" ").toLowerCase()
+  return {qty, unit}
+}
+
+function statusOf(qty, unit){
+  let r = RULES[unit]
+  if (!r) return {label:"-", icon:"❓", cls:""}
+  if (qty <= r.bahaya) return {label:"Bahaya", icon:"🔴", cls:"status-bahaya"}
+  if (qty <= r.waspada) return {label:"Waspada", icon:"🟡", cls:"status-waspada"}
+  return {label:"Aman", icon:"🟢", cls:"status-aman"}
+}
+
+async function fetchJSON(url){
+  const res = await fetch(url,{cache:"no-store"})
+  let data = await res.json()
+  return Array.isArray(data) ? data : (data.result || data.data || [])
+}
+
+let dt, chart
+
+async function loadData(){
+  $('#refreshBtn').prop('disabled', true)
+  try{
+    const raw = await fetchJSON(API_URL)
+    if (!raw || raw.length===0) throw new Error("Data kosong")
+
+    const rows = raw.map(r=>{
+      const tersedia = r.Tersedia || "";
+      const { qty, unit } = parseQty(tersedia);
+      const st = statusOf(qty, unit);
+      return {
+        gambar: r.Gambar || "",
+        barang: r.Barang || r.Nama || "Barang",
+        tersedia: tersedia,
+        statusObj: st
+      }
+    })
+
+    dayjs.locale('id')
+    document.getElementById('last-updated').textContent = "Dimuat: " + dayjs().format("dddd, D MMM YYYY HH:mm")
+
+    const columns = [
+      {
+        title: "Gambar",
+        data: "gambar",
+        render: function(data) {
+          return `<img src="${data}" alt="Gambar Barang" style="width: 40px; height: 40px; object-fit: cover; border-radius: 6px;">`;
+        }
+      },
+      { title: "Nama Barang", data: "barang" },
+      { title: "Stok", data: "tersedia" },
+      {
+        title: "Status",
+        data: null,
+        render: function(_, __, row) {
+          return `<span class="status-badge ${row.statusObj.cls}">${row.statusObj.icon} ${row.statusObj.label}</span>`;
+        }
+      }
+    ];
+
+    if(dt){
+      dt.clear(); dt.rows.add(rows).draw()
+    } else {
+      dt = new DataTable("#stokTable",{
+        data:rows,
+        columns,
+        pageLength:10,
+        order:[[2,"asc"]],
+        language:{url:"https://cdn.datatables.net/plug-ins/2.0.8/i18n/id.json"}
+      })
+      $("#statusFilter").on("change",function(){
+        const v=this.value
+        if (!v) dt.column(2).search("").draw()
+        else dt.column(2).search(v,true,false).draw()
+      })
+    }
+
+    const total = rows.length
+    const aman = rows.filter(r => r.statusObj.label === "Aman").length
+    const waspada = rows.filter(r => r.statusObj.label === "Waspada").length
+    const bahaya = rows.filter(r => r.statusObj.label === "Bahaya").length
+    document.getElementById("statTotal").textContent = total
+    document.getElementById("statAman").textContent = aman
+    document.getElementById("statAlert").textContent = waspada+bahaya
+
+    if(chart) chart.destroy()
+    chart=new Chart(document.getElementById("ringkasanChart"),{
+      type:"doughnut",
+      data:{labels:["Aman","Waspada","Bahaya"],datasets:[{data:[aman,waspada,bahaya],backgroundColor:["#27ae60","#f1c40f","#e74c3c"]}]},
+      options:{plugins:{legend:{position:"bottom"}}}
+    })
+
+    regeneratePreview(rows)
+
+  }catch(err){
+    console.error(err)
+    alert(err.message)
+  }finally{
+    $('#refreshBtn').prop('disabled', false)
+  }
+}
+
+function regeneratePreview(rows){
+  const now = dayjs().locale("id")
+  const header = `📢 ${now.format("dddd")} - ${now.format("D MMMM YYYY, HH:mm")}\nLaporan Stok Kali Ini:`
+  let adaPeringatan = false
+  const lines = rows.map((r,i)=>{
+    if(r.statusObj.label!=="Aman") adaPeringatan=true
+    return `${i+1}. ${r.barang} → ${r.tersedia} | ${r.statusObj.icon} ${r.statusObj.label}`
+  })
+  const footer = adaPeringatan ? "⚠️ Mohon cek stok yang menipis.\nInfo: alamat website" : "✅ Semua stok aman, selamat menjalani usaha!"
+  document.getElementById("waPreview").value = [header,"",...lines,"",footer].join("\n")
+}
+
+// Events
+$("#refreshBtn").on("click",loadData)
+$("#regenBtn").on("click",()=>{if(dt) regeneratePreview(dt.rows().data().toArray())})
+$("#copyBtn").on("click",()=>{
+  const el=document.getElementById("waPreview");
+  el.select();
+  document.execCommand("copy");
+  const btn=document.getElementById("copyBtn");
+  btn.textContent="✅ Disalin";
+  setTimeout(()=>btn.textContent="Salin Pesan",1500)
+})
+
+loadData()
+</script>
+</body>
+</html>
