@@ -9,7 +9,8 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/relativeTime.js"></script> <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/id.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/relativeTime.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/id.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/833/833314.png" />
   <style>
@@ -25,15 +26,14 @@
       border-radius: 6px;
       background: #f0f0f0;
     }
-    /* GAYA BARU UNTUK LABEL WAKTU */
     .time-ago-badge {
       display: inline-block;
       margin-left: 8px;
       padding: 2px 8px;
       border-radius: 9999px;
-      background-color: #e0f2fe; /* Warna biru muda */
-      color: #0c4a6e; /* Warna biru tua */
-      font-size: 0.75rem; /* 12px */
+      background-color: #e0f2fe;
+      color: #0c4a6e;
+      font-size: 0.75rem;
       font-weight: 600;
     }
   </style>
@@ -92,7 +92,9 @@
     </div>
   </section>
 
-  <footer class="text-center text-xs text-slate-500">Made for Rama • Data via Google Apps Script</footer>
+  <footer class="text-center text-xs text-slate-500">by Ramadnintya • Data via Google Apps Script x Spreadsheet</footer>
+<footer class="text-center text-xs text-slate-500">
+V.2.0 Final Version</footer>
 </div>
 
 <script>
@@ -154,25 +156,13 @@ async function loadData(){
       }
     });
 
-    // Menampilkan waktu DIMUAT di browser
     document.getElementById('last-updated').textContent = "Dimuat: " + dayjs().format("dddd, D MMM YYYY HH:mm");
     
-    // ==================================================
-    // === MODIFIKASI UNTUK MENAMPILKAN WAKTU RELATIF ===
-    // ==================================================
-    // Aktifkan plugin RelativeTime dan atur locale ke Bahasa Indonesia
     dayjs.extend(window.dayjs_plugin_relativeTime);
     dayjs.locale('id');
-
-    // Buat string waktu absolut (seperti sebelumnya)
     const absoluteTime = dayjs(lastUpdatedFromServer).format("dddd, D MMMM YYYY HH:mm");
-
-    // Buat string waktu relatif (contoh: "51 menit yang lalu")
     const relativeTime = dayjs(lastUpdatedFromServer).fromNow();
-
-    // Gabungkan keduanya dengan label baru yang mencolok
     serverTimeDiv.innerHTML = `<strong>Data diupdate pada:</strong> ${absoluteTime} <span class="time-ago-badge">${relativeTime}</span>`;
-
 
     const columns = [
       {
@@ -188,9 +178,9 @@ async function loadData(){
       { title: "Stok", data: "tersedia", width: "100px" },
       {
         title: "Status",
-        data: null,
+        data: 'statusObj.label', // <-- PERUBAHAN 1: Tentukan data untuk filter
         width: "120px",
-        render: function(_, __, row) {
+        render: function(data, type, row) {
           return `<span class="status-badge ${row.statusObj.cls}">${row.statusObj.icon} ${row.statusObj.label}</span>`;
         }
       }
@@ -206,9 +196,14 @@ async function loadData(){
         order:[],
         language:{url:"https://cdn.datatables.net/plug-ins/2.0.8/i18n/id.json"}
       });
+
+      // ==================================================
+      // === PERUBAHAN 2: Sederhanakan logika filter   ===
+      // ==================================================
       $("#statusFilter").on("change",function(){
-        const v=this.value;
-        dt.column(2).search(v ? `>${v}<` : "", true, false).draw();
+        const v = this.value;
+        // Langsung cari teksnya, tidak perlu trik RegEx lagi
+        dt.column(2).search(v).draw();
       });
     }
 
