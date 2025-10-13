@@ -94,35 +94,78 @@
 
   <footer class="text-center text-xs text-slate-500">by Ramadnintya • Data via Google Apps Script x Spreadsheet</footer>
 <footer class="text-center text-xs text-slate-500">
-V.2.0 Final Version</footer>
+V.2.1.1 Final Version</footer>
 </div>
 
 <script>
 // ================== KONFIGURASI ==================
-const API_URL = "https://script.google.com/macros/s/AKfycbwiXmCnM-ZPMzI-kHmEvCOG0jyuruGoxiMe5bGwCtP7vYY6RsIy2gaYaoTvrOMKDlZfTg/exec";
+// URL AJAX diperbarui
+const API_URL = "https://script.google.com/macros/s/AKfycbxyJ0B9lP5ersRXtwyYobNI0FYfGGGpiDSL7-t1uYIavSKTc2ZWqMh_OBLbJ-IvX-VTGw/exec";
 
+// PERUBAHAN 1: Menambahkan ID unit kustom (PAC1, PAC2) ke RULES
 const RULES = {
-  "pack":    { aman: 2, waspada: 1, bahaya: 0 },
-  "kantong": { aman: 2, waspada: 1, bahaya: 0 },
-  "ml":      { aman: 200, waspada: 90, bahaya: 30 },
-  "sheets":  { aman: 80, waspada: 40, bahaya: 30 },
-  "pcs":     { aman: 30, waspada: 20, bahaya: 10 }
+  // ID Kustom (PAC1): Rentang Khusus
+  "PAC1": { unit: "pack", aman: 5, waspada: 3, bahaya: 1 }, 
+  
+  // ID Kustom (PAC2): Rentang Khusus Lain
+  "PAC2": { unit: "pack", aman: 10, waspada: 5, bahaya: 2 },
+  
+  // ID Generik
+  "PAC": { unit: "pack", aman: 2, waspada: 1, bahaya: 0 },
+  "KNT": { unit: "kantong", aman: 2, waspada: 1, bahaya: 0 },
+  "ML": { unit: "ml", aman: 200, waspada: 90, bahaya: 30 },
+  "SHT": { unit: "sheets", aman: 80, waspada: 40, bahaya: 30 },
+  "PCS": { unit: "pcs", aman: 30, waspada: 20, bahaya: 10 }
 }
 
 function parseQty(str){
-  if (!str) return {qty:0, unit:""}
+  if (!str) return {qty:0, unit:"", id:""}
   let parts = str.toString().trim().split(" ")
-  let qty = parseInt(parts[0]) || 0
-  let unit = parts.slice(1).join(" ").toLowerCase()
-  return {qty, unit}
+  
+  let qty = 0;
+  let unit = "";
+  let id = "";
+  
+  // Cari ID yang cocok di awal string (misalnya PAC1 5 pack)
+  const idMatch = Object.keys(RULES).find(key => str.startsWith(key + " "));
+  
+  if (idMatch) {
+    id = idMatch;
+    // Hapus ID dan spasi dari string sebelum di-parse
+    const qtyUnitStr = str.substring(id.length + 1).trim();
+    const qtyUnitParts = qtyUnitStr.split(" ");
+    qty = parseInt(qtyUnitParts[0]) || 0;
+    unit = qtyUnitParts.slice(1).join(" ").toLowerCase();
+  } else if (parts.length >= 2) {
+    // Format Qty Unit (e.g., 5 pack)
+    qty = parseInt(parts[0]) || 0;
+    unit = parts.slice(1).join(" ").toLowerCase();
+    // Coba temukan ID generik berdasarkan unit
+    for (const [key, value] of Object.entries(RULES)) {
+      if (value.unit === unit && key.length <= 3) { // Hanya ambil ID generik 3 huruf (PAC, KNT, dll)
+        id = key;
+        break;
+      }
+    }
+  }
+
+  return {qty, unit, id: id || unit} // Kembalikan ID yang ditemukan atau unit sebagai fallback
 }
 
-function statusOf(qty, unit){
-  let r = RULES[unit]
-  if (!r) return {label:"-", icon:"❓", cls:""}
-  if (qty <= r.bahaya) return {label:"Bahaya", icon:"🔴", cls:"status-bahaya"}
-  if (qty <= r.waspada) return {label:"Waspada", icon:"🟡", cls:"status-waspada"}
-  return {label:"Aman", icon:"🟢", cls:"status-aman"}
+function statusOf(qty, unitOrId){
+  // Gunakan ID atau Unit sebagai kunci pencarian di RULES
+  let r = RULES[unitOrId] || Object.values(RULES).find(rule => rule.unit === unitOrId);
+  if (!r) return {label:"-", icon:"❓", cls:"", priority: 3} // Prioritas 3: Tidak Tahu
+  if (qty <= r.bahaya) return {label:"Bahaya", icon:"🔴", cls:"status-bahaya", priority: 0} // Prioritas 0: Bahaya (tertinggi)
+  if (qty <= r.waspada) return {label:"Waspada", icon:"🟡", cls:"status-waspada", priority: 1} // Prioritas 1: Waspada
+  return {label:"Aman", icon:"🟢", cls:"status-aman", priority: 2} // Prioritas 2: Aman (terendah)
+}
+
+// Fungsi bantu untuk status tahu goreng (menggunakan warna solid seperti di screenshot)
+function getColorByStatus(num, currentTahu) {
+    // Logika sederhana: jika angka pola ada (num > 0), gunakan warna biru/merah
+    if (num > 0) return "#3498db"; // Biru untuk data yang ada (48, 49)
+    return "#e74c3c"; // Merah untuk data yang tidak ada (-)
 }
 
 let dt, chart
@@ -142,19 +185,58 @@ async function loadData(){
     const raw = result.data;
     const lastUpdatedFromServer = result.lastUpdated;
     
+    // Asumsi data gorengan diambil dari key 'gorengan'
+    const gorengData = result.gorengan || {
+        "Gorengan Tahu Ini": "1 Goreng",
+        "Target Goreng": "4 Goreng",
+        "Pola Goreng": "48, 49"
+    };
+
     if (!raw || raw.length===0) throw new Error("Data dari server kosong atau tidak valid.");
 
     const rows = raw.map(r=>{
       const tersedia = r.Tersedia || "";
-      const { qty, unit } = parseQty(tersedia);
-      const st = statusOf(qty, unit);
+      const { qty, unit, id } = parseQty(tersedia);
+      // Gunakan ID yang ditemukan atau unit sebagai fallback
+      const st = statusOf(qty, id);
       return {
         gambar: r.Gambar || "",
         barang: r.Barang || r.Nama || "Barang",
         tersedia: tersedia,
-        statusObj: st
+        statusObj: st,
+        statusPriority: st.priority // Tambahkan untuk sorting WA
       }
     });
+    
+    // PERUBAHAN STATUS TAHU GORENG (sesuai format baru)
+    const currentTahuStr = gorengData["Gorengan Tahu Ini"] || "0 Goreng";
+    const targetTahuStr = gorengData["Target Goreng"] || "0 Goreng";
+    const polaGorengStr = gorengData["Pola Goreng"] || "";
+    
+    // Ambil angka saja
+    const currentTahu = parseInt(currentTahuStr.split(" ")[0]) || 0;
+    const targetTahu = parseInt(targetTahuStr.split(" ")[0]) || 0;
+    
+    // Pola Goreng diubah jadi array of numbers
+    const polaGoreng = polaGorengStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    
+    // Buat array target sesuai jumlah targetTahu (4 elemen) dan tambahkan 0/'-' jika kurang
+    const targetArray = Array(targetTahu).fill(0).map((_, i) => polaGoreng[i] || 0);
+
+    const tahuStatusText = `Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng (Pola: ${polaGorengStr || '-'})`;
+    
+    // Tampilan persis seperti screenshot
+    let tahuStatusHTML = `<h3 class="font-bold text-center text-xl mt-2 mb-4">Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng</h3>`;
+    
+    const polaHTML = targetArray.map((num) => {
+        const displayNum = num === 0 ? '-' : num;
+        const bgColor = getColorByStatus(num, currentTahu);
+
+        return `<span style="display:inline-block; margin-right: 8px; padding: 6px 16px; border-radius: 6px; background-color: ${bgColor}; color: white; font-weight: bold; font-size: 1.1rem;">${displayNum}</span>`;
+    }).join('');
+    
+    tahuStatusHTML += `<div class="mt-2 flex justify-center">${polaHTML}</div>`;
+    // =========================================================================
 
     document.getElementById('last-updated').textContent = "Dimuat: " + dayjs().format("dddd, D MMM YYYY HH:mm");
     
@@ -162,7 +244,10 @@ async function loadData(){
     dayjs.locale('id');
     const absoluteTime = dayjs(lastUpdatedFromServer).format("dddd, D MMMM YYYY HH:mm");
     const relativeTime = dayjs(lastUpdatedFromServer).fromNow();
-    serverTimeDiv.innerHTML = `<strong>Data diupdate pada:</strong> ${absoluteTime} <span class="time-ago-badge">${relativeTime}</span>`;
+    
+    // PERUBAHAN 2b: Tampilkan Status Goreng
+    serverTimeDiv.innerHTML = `<strong>Data diupdate pada:</strong> ${absoluteTime} <span class="time-ago-badge">${relativeTime}</span><div class="mt-3 p-3 bg-white border rounded-lg">${tahuStatusHTML}</div>`;
+
 
     const columns = [
       {
@@ -178,7 +263,7 @@ async function loadData(){
       { title: "Stok", data: "tersedia", width: "100px" },
       {
         title: "Status",
-        data: 'statusObj.label', // <-- PERUBAHAN 1: Tentukan data untuk filter
+        data: 'statusObj.label',
         width: "120px",
         render: function(data, type, row) {
           return `<span class="status-badge ${row.statusObj.cls}">${row.statusObj.icon} ${row.statusObj.label}</span>`;
@@ -193,16 +278,11 @@ async function loadData(){
         data:rows,
         columns,
         pageLength:10,
-        order:[],
         language:{url:"https://cdn.datatables.net/plug-ins/2.0.8/i18n/id.json"}
       });
 
-      // ==================================================
-      // === PERUBAHAN 2: Sederhanakan logika filter   ===
-      // ==================================================
       $("#statusFilter").on("change",function(){
         const v = this.value;
-        // Langsung cari teksnya, tidak perlu trik RegEx lagi
         dt.column(2).search(v).draw();
       });
     }
@@ -222,7 +302,7 @@ async function loadData(){
       options:{plugins:{legend:{position:"bottom"}}}
     });
 
-    regeneratePreview(rows);
+    regeneratePreview(rows, tahuStatusText); 
 
   }catch(err){
     console.error(err);
@@ -234,21 +314,30 @@ async function loadData(){
   }
 }
 
-function regeneratePreview(rows){
+// PERUBAHAN 3: Urutan Pesan WhatsApp (Bahaya ke Aman)
+function regeneratePreview(rows, tahuStatusText = ""){
   const now = dayjs().locale("id");
   const header = `📢 ${now.format("dddd")} - ${now.format("D MMMM YYYY, HH:mm")}\nLaporan Stok Kali Ini:`;
+  
+  // Urutkan item: Bahaya (0) -> Waspada (1) -> Aman (2) -> Tidak Tahu (3)
+  const sortedRows = rows.sort((a, b) => a.statusPriority - b.statusPriority);
+
   let adaPeringatan = false;
-  const lines = rows.map((r,i)=>{
+  const lines = sortedRows.map((r,i)=>{
     if(r.statusObj.label!=="Aman") adaPeringatan=true;
     return `${i+1}. ${r.barang} => ${r.tersedia} | ${r.statusObj.icon} ${r.statusObj.label}`;
   });
-  const footer = adaPeringatan ? "⚠️ Mohon cek stok yang menipis.\nInfo: https://ramadani1t.github.io/DB-Stock-Bot-Reminder" : "✅ Semua stok aman, selamat menjalani usaha!";
-  document.getElementById("waPreview").value = [header,"",...lines,"",footer].join("\n");
+  
+  const tahuLine = tahuStatusText ? `\n\n--- Status Tambahan ---\n${tahuStatusText}` : "";
+  const footer = adaPeringatan ? "⚠️ Mohon cek stok yang menipis." : "✅ Semua stok aman, selamat menjalani usaha!";
+  
+  document.getElementById("waPreview").value = [header, tahuLine, "", ...lines, "", footer, "Info: https://ramadani1t.github.io/DB-Stock-Bot-Reminder"].join("\n");
 }
 
 // Events
 $("#refreshBtn").on("click",loadData);
-$("#regenBtn").on("click",()=>{if(dt) regeneratePreview(dt.rows().data().toArray())});
+// Tombol regen sekarang memanggil loadData() agar status tahu juga di-refresh
+$("#regenBtn").on("click",()=>{if(dt) loadData();}); 
 $("#copyBtn").on("click",()=>{
   const el=document.getElementById("waPreview");
   el.select();
