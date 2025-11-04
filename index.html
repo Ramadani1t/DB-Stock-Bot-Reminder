@@ -36,6 +36,7 @@
       font-size: 0.75rem;
       font-weight: 600;
     }
+    /* CATATAN: CSS .pola-container DIHAPUS untuk mendukung mode stretching */
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -94,28 +95,25 @@
 
   <footer class="text-center text-xs text-slate-500">by Ramadnintya • Data via Google Apps Script x Spreadsheet</footer>
 <footer class="text-center text-xs text-slate-500">
-V.2.1.1 Final Version</footer>
+V.2.1.5+ Beta Version</footer>
 </div>
 
 <script>
 // ================== KONFIGURASI ==================
-// URL AJAX diperbarui
 const API_URL = "https://script.google.com/macros/s/AKfycbxyJ0B9lP5ersRXtwyYobNI0FYfGGGpiDSL7-t1uYIavSKTc2ZWqMh_OBLbJ-IvX-VTGw/exec";
 
-// PERUBAHAN 1: Menambahkan ID unit kustom (PAC1, PAC2) ke RULES
 const RULES = {
-  // ID Kustom (PAC1): Rentang Khusus
+  // ID SPESIFIK KUSTOM (Prioritas 1)
   "PAC1": { unit: "pack", aman: 5, waspada: 3, bahaya: 1 }, 
-  
-  // ID Kustom (PAC2): Rentang Khusus Lain
   "PAC2": { unit: "pack", aman: 10, waspada: 5, bahaya: 2 },
+  "PAC3": { unit: "pack", aman: 7, waspada: 4, bahaya: 2 },
   
-  // ID Generik
-  "PAC": { unit: "pack", aman: 2, waspada: 1, bahaya: 0 },
-  "KNT": { unit: "kantong", aman: 2, waspada: 1, bahaya: 0 },
-  "ML": { unit: "ml", aman: 200, waspada: 90, bahaya: 30 },
-  "SHT": { unit: "sheets", aman: 80, waspada: 40, bahaya: 30 },
-  "PCS": { unit: "pcs", aman: 30, waspada: 20, bahaya: 10 }
+  // ID GENERIK BERDASARKAN NAMA UNIT (Prioritas 2 / Fallback)
+  "pack":    { aman: 2, waspada: 1, bahaya: 0 }, 
+  "kantong": { aman: 2, waspada: 1, bahaya: 0 },
+  "ml":      { aman: 200, waspada: 90, bahaya: 30 },
+  "sheets":  { aman: 80, waspada: 40, bahaya: 30 },
+  "pcs":     { aman: 30, waspada: 20, bahaya: 10 }
 }
 
 function parseQty(str){
@@ -126,46 +124,46 @@ function parseQty(str){
   let unit = "";
   let id = "";
   
-  // Cari ID yang cocok di awal string (misalnya PAC1 5 pack)
-  const idMatch = Object.keys(RULES).find(key => str.startsWith(key + " "));
+  const idCustomMatch = Object.keys(RULES).find(key => str.startsWith(key + " ") && RULES[key].unit);
   
-  if (idMatch) {
-    id = idMatch;
-    // Hapus ID dan spasi dari string sebelum di-parse
+  if (idCustomMatch) {
+    id = idCustomMatch;
     const qtyUnitStr = str.substring(id.length + 1).trim();
     const qtyUnitParts = qtyUnitStr.split(" ");
     qty = parseInt(qtyUnitParts[0]) || 0;
     unit = qtyUnitParts.slice(1).join(" ").toLowerCase();
   } else if (parts.length >= 2) {
-    // Format Qty Unit (e.g., 5 pack)
     qty = parseInt(parts[0]) || 0;
     unit = parts.slice(1).join(" ").toLowerCase();
-    // Coba temukan ID generik berdasarkan unit
-    for (const [key, value] of Object.entries(RULES)) {
-      if (value.unit === unit && key.length <= 3) { // Hanya ambil ID generik 3 huruf (PAC, KNT, dll)
-        id = key;
-        break;
-      }
-    }
+    id = unit;
   }
-
-  return {qty, unit, id: id || unit} // Kembalikan ID yang ditemukan atau unit sebagai fallback
+  return {qty, unit, id: id} 
 }
 
-function statusOf(qty, unitOrId){
-  // Gunakan ID atau Unit sebagai kunci pencarian di RULES
-  let r = RULES[unitOrId] || Object.values(RULES).find(rule => rule.unit === unitOrId);
-  if (!r) return {label:"-", icon:"❓", cls:"", priority: 3} // Prioritas 3: Tidak Tahu
-  if (qty <= r.bahaya) return {label:"Bahaya", icon:"🔴", cls:"status-bahaya", priority: 0} // Prioritas 0: Bahaya (tertinggi)
-  if (qty <= r.waspada) return {label:"Waspada", icon:"🟡", cls:"status-waspada", priority: 1} // Prioritas 1: Waspada
-  return {label:"Aman", icon:"🟢", cls:"status-aman", priority: 2} // Prioritas 2: Aman (terendah)
+function statusOf(qty, idOrUnit){
+  let r = RULES[idOrUnit]; 
+  
+  if (!r) return {label:"-", icon:"❓", cls:"", priority: 3} 
+  if (qty <= r.bahaya) return {label:"Bahaya", icon:"🔴", cls:"status-bahaya", priority: 0} 
+  if (qty <= r.waspada) return {label:"Waspada", icon:"🟡", cls:"status-waspada", priority: 1} 
+  return {label:"Aman", icon:"🟢", cls:"status-aman", priority: 2} 
 }
 
-// Fungsi bantu untuk status tahu goreng (menggunakan warna solid seperti di screenshot)
-function getColorByStatus(num, currentTahu) {
-    // Logika sederhana: jika angka pola ada (num > 0), gunakan warna biru/merah
-    if (num > 0) return "#3498db"; // Biru untuk data yang ada (48, 49)
-    return "#e74c3c"; // Merah untuk data yang tidak ada (-)
+function getColorByStatus(str) {
+    const trimmedStr = str.toString().trim();
+    
+    // KONDISI 1: Cek apakah dimulai dengan + atau - (untuk penanda tahu besok)
+    if (trimmedStr.startsWith('+') || trimmedStr.startsWith('-')) {
+        return "#94a3b8"; // WARNA ABU-ABU
+    } 
+    
+    // KONDISI 2: Cek apakah data kosong (-)
+    if (trimmedStr === '-') {
+        return "#e74c3c"; // Merah untuk data yang tidak ada (-)
+    }
+
+    // KONDISI 3: Data ada (angka biasa)
+    return "#3498db"; // Biru
 }
 
 let dt, chart
@@ -185,58 +183,55 @@ async function loadData(){
     const raw = result.data;
     const lastUpdatedFromServer = result.lastUpdated;
     
-    // Asumsi data gorengan diambil dari key 'gorengan'
-    const gorengData = result.gorengan || {
-        "Gorengan Tahu Ini": "1 Goreng",
-        "Target Goreng": "4 Goreng",
-        "Pola Goreng": "48, 49"
-    };
+    const gorengData = result.gorengan || {}; 
 
     if (!raw || raw.length===0) throw new Error("Data dari server kosong atau tidak valid.");
 
     const rows = raw.map(r=>{
       const tersedia = r.Tersedia || "";
       const { qty, unit, id } = parseQty(tersedia);
-      // Gunakan ID yang ditemukan atau unit sebagai fallback
       const st = statusOf(qty, id);
       return {
         gambar: r.Gambar || "",
         barang: r.Barang || r.Nama || "Barang",
         tersedia: tersedia,
         statusObj: st,
-        statusPriority: st.priority // Tambahkan untuk sorting WA
+        statusPriority: st.priority 
       }
     });
     
-    // PERUBAHAN STATUS TAHU GORENG (sesuai format baru)
+    // LOGIKA STATUS TAHU GORENG
     const currentTahuStr = gorengData["Gorengan Tahu Ini"] || "0 Goreng";
     const targetTahuStr = gorengData["Target Goreng"] || "0 Goreng";
     const polaGorengStr = gorengData["Pola Goreng"] || "";
     
-    // Ambil angka saja
     const currentTahu = parseInt(currentTahuStr.split(" ")[0]) || 0;
     const targetTahu = parseInt(targetTahuStr.split(" ")[0]) || 0;
     
-    // Pola Goreng diubah jadi array of numbers
-    const polaGoreng = polaGorengStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    const polaGoreng = polaGorengStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
     
-    // Buat array target sesuai jumlah targetTahu (4 elemen) dan tambahkan 0/'-' jika kurang
-    const targetArray = Array(targetTahu).fill(0).map((_, i) => polaGoreng[i] || 0);
+    const targetArray = Array(targetTahu).fill('-').map((_, i) => polaGoreng[i] || '-');
 
     const tahuStatusText = `Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng (Pola: ${polaGorengStr || '-'})`;
     
-    // Tampilan persis seperti screenshot
-    let tahuStatusHTML = `<h3 class="font-bold text-center text-xl mt-2 mb-4">Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng</h3>`;
+    let tahuStatusHTML = '';
     
-    const polaHTML = targetArray.map((num) => {
-        const displayNum = num === 0 ? '-' : num;
-        const bgColor = getColorByStatus(num, currentTahu);
+    if (targetTahu > 0) {
+        tahuStatusHTML = `<h3 class="font-bold text-center text-xl mt-2 mb-4">Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng</h3>`;
+        
+        // PERUBAHAN UTAMA: Gunakan flex-1 pada span untuk stretching dan space-x-2 untuk jarak
+        const polaHTMLContent = targetArray.map((str) => {
+            const displayStr = str;
+            const bgColor = getColorByStatus(displayStr); 
 
-        return `<span style="display:inline-block; margin-right: 8px; padding: 6px 16px; border-radius: 6px; background-color: ${bgColor}; color: white; font-weight: bold; font-size: 1.1rem;">${displayNum}</span>`;
-    }).join('');
-    
-    tahuStatusHTML += `<div class="mt-2 flex justify-center">${polaHTML}</div>`;
-    // =========================================================================
+            // Tambahkan class flex-1 dan text-center
+            return `<span class="flex-1 text-center" style="padding: 6px 0; border-radius: 6px; background-color: ${bgColor}; color: white; font-weight: bold; font-size: 1.1rem; line-height: 1.5;">${displayStr}</span>`;
+        }).join('');
+        
+        // Wrapper menggunakan flex dan space-x-2. Ini menggantikan pola-container yang sebelumnya.
+        tahuStatusHTML += `<div class="mt-2 flex space-x-2">${polaHTMLContent}</div>`;
+    }
+    // AKHIR LOGIKA STATUS TAHU GORENG
 
     document.getElementById('last-updated').textContent = "Dimuat: " + dayjs().format("dddd, D MMM YYYY HH:mm");
     
@@ -245,8 +240,7 @@ async function loadData(){
     const absoluteTime = dayjs(lastUpdatedFromServer).format("dddd, D MMMM YYYY HH:mm");
     const relativeTime = dayjs(lastUpdatedFromServer).fromNow();
     
-    // PERUBAHAN 2b: Tampilkan Status Goreng
-    serverTimeDiv.innerHTML = `<strong>Data diupdate pada:</strong> ${absoluteTime} <span class="time-ago-badge">${relativeTime}</span><div class="mt-3 p-3 bg-white border rounded-lg">${tahuStatusHTML}</div>`;
+    serverTimeDiv.innerHTML = `<strong>Data diupdate pada:</strong> ${absoluteTime} <span class="time-ago-badge">${relativeTime}</span>${tahuStatusHTML ? `<div class="mt-3 p-3 bg-white border rounded-lg">${tahuStatusHTML}</div>` : ''}`;
 
 
     const columns = [
@@ -314,12 +308,10 @@ async function loadData(){
   }
 }
 
-// PERUBAHAN 3: Urutan Pesan WhatsApp (Bahaya ke Aman)
 function regeneratePreview(rows, tahuStatusText = ""){
   const now = dayjs().locale("id");
   const header = `📢 ${now.format("dddd")} - ${now.format("D MMMM YYYY, HH:mm")}\nLaporan Stok Kali Ini:`;
   
-  // Urutkan item: Bahaya (0) -> Waspada (1) -> Aman (2) -> Tidak Tahu (3)
   const sortedRows = rows.sort((a, b) => a.statusPriority - b.statusPriority);
 
   let adaPeringatan = false;
@@ -336,7 +328,6 @@ function regeneratePreview(rows, tahuStatusText = ""){
 
 // Events
 $("#refreshBtn").on("click",loadData);
-// Tombol regen sekarang memanggil loadData() agar status tahu juga di-refresh
 $("#regenBtn").on("click",()=>{if(dt) loadData();}); 
 $("#copyBtn").on("click",()=>{
   const el=document.getElementById("waPreview");
