@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dstock-dashboard",
+  "compatibility_date": "2026-07-20",
+  "assets": {
+    "directory": "./dist/public",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    {
+      "pattern": "dstock.tahunyakrispiya.my.id",
+      "custom_domain": true
+    }
+  ]
+}

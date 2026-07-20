@@ -40,3 +40,20 @@ Untuk memakai subdomain seperti `stock.domainkamu.com`:
    ```
 
 4. Tunggu DNS aktif, lalu aktifkan HTTPS di GitHub Pages.
+
+## Cloudflare Workers
+
+Project ini juga bisa dihost sebagai Cloudflare Worker static asset di:
+
+```txt
+https://dstock.tahunyakrispiya.my.id/
+```
+
+Deploy:
+
+```bash
+npm install
+npm run deploy
+```
+
+Pastikan domain `tahunyakrispiya.my.id` sudah ada sebagai zone di Cloudflare dan akun Wrangler sudah login.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Laporan Stok Barang – AJAX Google Sheet</title>
+  <title>DStock - Laporan Stok Barang</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css" />
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -14,328 +14,443 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/833/833314.png" />
   <style>
-    .status-badge{display:inline-flex;align-items:center;gap:.5rem;padding:.25rem .5rem;border-radius:9999px;font-weight:600}
-    .status-aman{background:#e7f8ef}
-    .status-waspada{background:#fff6e6}
-    .status-bahaya{background:#ffeaea}
-    .dt-img-name{display:flex;align-items:center;gap:0.75rem}
-    .dt-img-name img {
-      width: 40px; 
-      height: 40px;
-      object-fit: cover;
-      border-radius: 6px;
-      background: #f0f0f0;
+    :root {
+      color-scheme: light;
+      --ink: #102033;
+      --muted: #64748b;
+      --line: #dbe3ee;
+      --paper: rgba(255, 255, 255, .92);
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --ok: #16a34a;
     }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(20, 184, 166, .20), transparent 32rem),
+        radial-gradient(circle at 88% 8%, rgba(251, 191, 36, .18), transparent 26rem),
+        linear-gradient(135deg, #f8fafc 0%, #eef7f4 48%, #fff8ea 100%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .shell { max-width: 1200px; margin: 0 auto; padding: 28px 18px 20px; }
+    .topbar, .panel, .metric-card, .update-strip {
+      background: var(--paper);
+      border: 1px solid rgba(148, 163, 184, .28);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, .08);
+      backdrop-filter: blur(14px);
+    }
+    .topbar { border-radius: 8px; padding: 18px; }
+    .panel, .metric-card, .update-strip { border-radius: 8px; }
+    .metric-card { padding: 16px; position: relative; overflow: hidden; }
+    .metric-card::after {
+      content: "";
+      position: absolute;
+      inset: auto 14px 12px auto;
+      width: 52px;
+      height: 52px;
+      border-radius: 8px;
+      opacity: .16;
+      background: currentColor;
+    }
+    .metric-total { color: #2563eb; }
+    .metric-safe { color: var(--ok); }
+    .metric-alert { color: var(--danger); }
+    .control {
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 0 12px;
+      font-size: .9rem;
+      outline: none;
+    }
+    .control:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(15, 118, 110, .14); }
+    .btn {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 8px;
+      padding: 0 14px;
+      font-size: .9rem;
+      font-weight: 700;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--brand); color: #fff; box-shadow: 0 10px 20px rgba(15, 118, 110, .20); }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-soft { background: #ecfdf5; color: #065f46; border: 1px solid #bbf7d0; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .38rem .6rem;
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .status-aman { background: #dcfce7; color: #166534; }
+    .status-waspada { background: #fef3c7; color: #92400e; }
+    .status-bahaya { background: #fee2e2; color: #991b1b; }
+    .status-unknown { background: #e2e8f0; color: #475569; }
+    .dt-img-name { display: flex; align-items: center; gap: .75rem; min-width: 190px; }
+    .dt-img-name img { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; }
     .time-ago-badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       margin-left: 8px;
-      padding: 2px 8px;
-      border-radius: 9999px;
-      background-color: #e0f2fe;
-      color: #0c4a6e;
-      font-size: 0.75rem;
-      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #075985;
+      font-size: .76rem;
+      font-weight: 800;
     }
-    /* CATATAN: CSS .pola-container DIHAPUS untuk mendukung mode stretching */
+    .fry-pill {
+      min-width: 44px;
+      flex: 1 1 44px;
+      text-align: center;
+      padding: 8px 6px;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .dataTables_wrapper .dt-search input, .dataTables_wrapper .dt-length select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #fff;
+      outline: none;
+    }
+    table.dataTable { border-collapse: separate !important; border-spacing: 0 8px !important; }
+    table.dataTable thead th { border-bottom: 0 !important; color: #64748b; font-size: .78rem; text-transform: uppercase; letter-spacing: 0; }
+    table.dataTable tbody tr { background: #fff !important; box-shadow: 0 1px 0 rgba(148, 163, 184, .22); }
+    table.dataTable tbody td { border-top: 1px solid #eef2f7; border-bottom: 1px solid #eef2f7; padding: 10px 12px !important; vertical-align: middle; }
+    table.dataTable tbody td:first-child { border-left: 1px solid #eef2f7; border-radius: 8px 0 0 8px; }
+    table.dataTable tbody td:last-child { border-right: 1px solid #eef2f7; border-radius: 0 8px 8px 0; }
+    textarea { resize: vertical; }
+
+    @media (max-width: 720px) {
+      .shell { padding: 14px 10px; }
+      .topbar { padding: 14px; }
+      .mobile-stack { flex-direction: column; align-items: stretch; }
+      .btn, .control { width: 100%; }
+      .dt-img-name { min-width: 160px; }
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-<div class="max-w-6xl mx-auto p-6">
-  <header class="mb-6 flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold">📦 Laporan Stok Barang</h1>
-      <p id="last-updated" class="text-sm text-slate-500">Memuat data…</p>
-    </div>
-    <div class="flex items-center gap-2">
-      <select id="statusFilter" class="border rounded-lg px-3 py-2 bg-white text-sm">
-        <option value="">Semua Status</option>
-        <option value="Aman">🟢 Aman</option>
-        <option value="Waspada">🟡 Waspada</option>
-        <option value="Bahaya">🔴 Bahaya</option>
-      </select>
-      <button id="refreshBtn" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-sm">↻ Muat Ulang</button>
-    </div>
-  </header>
-
-  <section class="grid md:grid-cols-3 gap-4 mb-6">
-    <div class="rounded-2xl bg-white shadow p-4">
-      <div class="text-xs text-slate-500">Total Item</div>
-      <div id="statTotal" class="text-2xl font-bold">-</div>
-    </div>
-    <div class="rounded-2xl bg-white shadow p-4">
-      <div class="text-xs text-slate-500">Item Aman</div>
-      <div id="statAman" class="text-2xl font-bold">-</div>
-    </div>
-    <div class="rounded-2xl bg-white shadow p-4">
-      <div class="text-xs text-slate-500">Perlu Perhatian (Waspada/Bahaya)</div>
-      <div id="statAlert" class="text-2xl font-bold">-</div>
-    </div>
-  </section>
-  
-  <div id="server-update-time" class="text-center text-sm text-slate-600 mb-6" style="display: none;">
-    Memuat waktu update data...
-  </div>
-
-  <section class="grid md:grid-cols-3 gap-6 mb-8">
-    <div class="md:col-span-2 rounded-2xl bg-white shadow p-4">
-      <table id="stokTable" class="display w-full"></table>
-    </div>
-    <div class="rounded-2xl bg-white shadow p-4">
-      <h3 class="font-semibold mb-3">Ringkasan Status</h3>
-      <canvas id="ringkasanChart" height="260"></canvas>
-      <hr class="my-4" />
-      <h3 class="font-semibold mb-2">Preview Pesan WhatsApp</h3>
-      <textarea id="waPreview" class="w-full h-48 border rounded-lg p-3 text-sm" readonly></textarea>
-      <div class="flex gap-2 mt-2">
-        <button id="copyBtn" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm">Salin Pesan</button>
-        <button id="regenBtn" class="px-3 py-2 rounded-lg bg-slate-200 text-slate-800 text-sm">Buat Ulang</button>
+<body>
+  <main class="shell">
+    <header class="topbar mb-5">
+      <div class="flex mobile-stack items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-800 ring-1 ring-teal-100">DStock Dashboard</div>
+          <h1 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Laporan Stok Barang</h1>
+          <p id="last-updated" class="mt-1 text-sm text-slate-500">Memuat data...</p>
+        </div>
+        <div class="flex mobile-stack items-center gap-2">
+          <select id="statusFilter" class="control">
+            <option value="">Semua Status</option>
+            <option value="Aman">Aman</option>
+            <option value="Waspada">Waspada</option>
+            <option value="Bahaya">Bahaya</option>
+          </select>
+          <button id="refreshBtn" class="btn btn-primary" type="button">↻ Muat Ulang</button>
+        </div>
       </div>
-    </div>
-  </section>
+    </header>
 
-  <footer class="text-center text-xs text-slate-500">by Ramadnintya • Data via Google Apps Script x Spreadsheet</footer>
-<footer class="text-center text-xs text-slate-500">
-V.2.1.5+ Beta Version</footer>
-</div>
+    <section class="grid gap-3 md:grid-cols-3 mb-5">
+      <article class="metric-card metric-total">
+        <p class="text-xs font-bold uppercase text-slate-500">Total Item</p>
+        <div id="statTotal" class="mt-2 text-3xl font-black">-</div>
+      </article>
+      <article class="metric-card metric-safe">
+        <p class="text-xs font-bold uppercase text-slate-500">Item Aman</p>
+        <div id="statAman" class="mt-2 text-3xl font-black">-</div>
+      </article>
+      <article class="metric-card metric-alert">
+        <p class="text-xs font-bold uppercase text-slate-500">Perlu Perhatian</p>
+        <div id="statAlert" class="mt-2 text-3xl font-black">-</div>
+      </article>
+    </section>
+
+    <section id="server-update-time" class="update-strip mb-5 hidden p-4 text-sm text-slate-700">
+      Memuat waktu update data...
+    </section>
+
+    <section class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div class="panel p-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-black">Daftar Stok</h2>
+            <p class="text-sm text-slate-500">Urutkan dan cari barang dari data Google Sheets.</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table id="stokTable" class="display w-full"></table>
+        </div>
+      </div>
+
+      <aside class="space-y-5">
+        <div class="panel p-4">
+          <h2 class="mb-3 text-lg font-black">Ringkasan Status</h2>
+          <canvas id="ringkasanChart" height="250"></canvas>
+        </div>
+
+        <div class="panel p-4">
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <h2 class="text-lg font-black">Pesan WhatsApp</h2>
+          </div>
+          <textarea id="waPreview" class="h-56 w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700" readonly></textarea>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button id="copyBtn" class="btn btn-primary" type="button">Salin Pesan</button>
+            <button id="regenBtn" class="btn btn-soft" type="button">Buat Ulang</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <footer class="mt-6 text-center text-xs text-slate-500">
+      by Ramadnintya · Data via Google Apps Script x Spreadsheet · V.2.2.0
+    </footer>
+  </main>
 
 <script>
-// ================== KONFIGURASI ==================
 const API_URL = "https://script.google.com/macros/s/AKfycbxyJ0B9lP5ersRXtwyYobNI0FYfGGGpiDSL7-t1uYIavSKTc2ZWqMh_OBLbJ-IvX-VTGw/exec";
 
 const RULES = {
-  // ID SPESIFIK KUSTOM (Prioritas 1)
-  "PAC1": { unit: "pack", aman: 5, waspada: 3, bahaya: 1 }, 
-  "PAC2": { unit: "pack", aman: 10, waspada: 5, bahaya: 2 },
-  "PAC3": { unit: "pack", aman: 7, waspada: 4, bahaya: 2 },
-  
-  // ID GENERIK BERDASARKAN NAMA UNIT (Prioritas 2 / Fallback)
-  "pack":    { aman: 2, waspada: 1, bahaya: 0 }, 
-  "kantong": { aman: 2, waspada: 1, bahaya: 0 },
-  "ml":      { aman: 200, waspada: 90, bahaya: 30 },
-  "sheets":  { aman: 80, waspada: 40, bahaya: 30 },
-  "pcs":     { aman: 30, waspada: 20, bahaya: 10 }
+  PAC1: { unit: "pack", aman: 5, waspada: 3, bahaya: 1 },
+  PAC2: { unit: "pack", aman: 10, waspada: 5, bahaya: 2 },
+  PAC3: { unit: "pack", aman: 7, waspada: 4, bahaya: 2 },
+  pack: { aman: 2, waspada: 1, bahaya: 0 },
+  kantong: { aman: 2, waspada: 1, bahaya: 0 },
+  ml: { aman: 200, waspada: 90, bahaya: 30 },
+  sheets: { aman: 80, waspada: 40, bahaya: 30 },
+  pcs: { aman: 30, waspada: 20, bahaya: 10 }
+};
+
+function parseQty(str, rowId = "") {
+  if (!str) return { qty: 0, unit: "", id: rowId || "" };
+  const parts = str.toString().trim().split(/\s+/);
+  const qty = parseInt(parts[0], 10) || 0;
+  const unit = parts.slice(1).join(" ").toLowerCase();
+  return { qty, unit, id: rowId || unit };
 }
 
-function parseQty(str){
-  if (!str) return {qty:0, unit:"", id:""}
-  let parts = str.toString().trim().split(" ")
-  
-  let qty = 0;
-  let unit = "";
-  let id = "";
-  
-  const idCustomMatch = Object.keys(RULES).find(key => str.startsWith(key + " ") && RULES[key].unit);
-  
-  if (idCustomMatch) {
-    id = idCustomMatch;
-    const qtyUnitStr = str.substring(id.length + 1).trim();
-    const qtyUnitParts = qtyUnitStr.split(" ");
-    qty = parseInt(qtyUnitParts[0]) || 0;
-    unit = qtyUnitParts.slice(1).join(" ").toLowerCase();
-  } else if (parts.length >= 2) {
-    qty = parseInt(parts[0]) || 0;
-    unit = parts.slice(1).join(" ").toLowerCase();
-    id = unit;
-  }
-  return {qty, unit, id: id} 
-}
-
-function statusOf(qty, idOrUnit){
-  let r = RULES[idOrUnit]; 
-  
-  if (!r) return {label:"-", icon:"❓", cls:"", priority: 3} 
-  if (qty <= r.bahaya) return {label:"Bahaya", icon:"🔴", cls:"status-bahaya", priority: 0} 
-  if (qty <= r.waspada) return {label:"Waspada", icon:"🟡", cls:"status-waspada", priority: 1} 
-  return {label:"Aman", icon:"🟢", cls:"status-aman", priority: 2} 
+function statusOf(qty, idOrUnit, fallbackUnit = "") {
+  const r = RULES[idOrUnit] || RULES[fallbackUnit];
+  if (!r) return { label: "-", icon: "?", cls: "status-unknown", priority: 3 };
+  if (qty <= r.bahaya) return { label: "Bahaya", icon: "●", cls: "status-bahaya", priority: 0 };
+  if (qty <= r.waspada) return { label: "Waspada", icon: "●", cls: "status-waspada", priority: 1 };
+  return { label: "Aman", icon: "●", cls: "status-aman", priority: 2 };
 }
 
 function getColorByStatus(str) {
-    const trimmedStr = str.toString().trim();
-    
-    // KONDISI 1: Cek apakah dimulai dengan + atau - (untuk penanda tahu besok)
-    if (trimmedStr.startsWith('+') || trimmedStr.startsWith('-')) {
-        return "#94a3b8"; // WARNA ABU-ABU
-    } 
-    
-    // KONDISI 2: Cek apakah data kosong (-)
-    if (trimmedStr === '-') {
-        return "#e74c3c"; // Merah untuk data yang tidak ada (-)
-    }
-
-    // KONDISI 3: Data ada (angka biasa)
-    return "#3498db"; // Biru
+  const trimmedStr = str.toString().trim();
+  if (trimmedStr.startsWith("+") || trimmedStr.startsWith("-")) return "#94a3b8";
+  if (trimmedStr === "-") return "#dc2626";
+  return "#0ea5e9";
 }
 
-let dt, chart
+function setLoading(isLoading) {
+  $("#refreshBtn").prop("disabled", isLoading).text(isLoading ? "Memuat..." : "↻ Muat Ulang");
+}
 
-async function loadData(){
-  $('#refreshBtn').prop('disabled', true).text("Memuat...");
-  document.getElementById('last-updated').textContent = "Menghubungi server...";
-  const serverTimeDiv = document.getElementById('server-update-time');
-  serverTimeDiv.style.display = 'block';
-  serverTimeDiv.textContent = 'Memuat waktu update data...';
-  
-  try{
-    const response = await fetch(API_URL,{cache:"no-store"});
-    if(!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const result = await response.json(); 
+let dt;
+let chart;
+let latestRows = [];
+let latestTahuStatusText = "";
+
+async function loadData() {
+  setLoading(true);
+  document.getElementById("last-updated").textContent = "Menghubungi server...";
+  const serverTimeDiv = document.getElementById("server-update-time");
+  serverTimeDiv.classList.remove("hidden");
+  serverTimeDiv.textContent = "Memuat waktu update data...";
+
+  try {
+    const response = await fetch(API_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const result = await response.json();
 
     const raw = result.data;
     const lastUpdatedFromServer = result.lastUpdated;
-    
-    const gorengData = result.gorengan || {}; 
+    const gorengData = result.gorengan || {};
+    if (!raw || raw.length === 0) throw new Error("Data dari server kosong atau tidak valid.");
 
-    if (!raw || raw.length===0) throw new Error("Data dari server kosong atau tidak valid.");
-
-    const rows = raw.map(r=>{
+    const rows = raw.map((r) => {
       const tersedia = r.Tersedia || "";
-      const { qty, unit, id } = parseQty(tersedia);
-      const st = statusOf(qty, id);
+      const rowId = (r.ID || "").toString().trim();
+      const { qty, unit, id } = parseQty(tersedia, rowId);
+      const st = statusOf(qty, id, unit);
       return {
+        id: rowId,
         gambar: r.Gambar || "",
         barang: r.Barang || r.Nama || "Barang",
-        tersedia: tersedia,
+        tersedia,
         statusObj: st,
-        statusPriority: st.priority 
-      }
+        statusPriority: st.priority
+      };
     });
-    
-    // LOGIKA STATUS TAHU GORENG
-    const currentTahuStr = gorengData["Gorengan Tahu Ini"] || "0 Goreng";
-    const targetTahuStr = gorengData["Target Goreng"] || "0 Goreng";
-    const polaGorengStr = gorengData["Pola Goreng"] || "";
-    
-    const currentTahu = parseInt(currentTahuStr.split(" ")[0]) || 0;
-    const targetTahu = parseInt(targetTahuStr.split(" ")[0]) || 0;
-    
-    const polaGoreng = polaGorengStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    
-    const targetArray = Array(targetTahu).fill('-').map((_, i) => polaGoreng[i] || '-');
 
-    const tahuStatusText = `Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng (Pola: ${polaGorengStr || '-'})`;
-    
-    let tahuStatusHTML = '';
-    
-    if (targetTahu > 0) {
-        tahuStatusHTML = `<h3 class="font-bold text-center text-xl mt-2 mb-4">Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng</h3>`;
-        
-        // PERUBAHAN UTAMA: Gunakan flex-1 pada span untuk stretching dan space-x-2 untuk jarak
-        const polaHTMLContent = targetArray.map((str) => {
-            const displayStr = str;
-            const bgColor = getColorByStatus(displayStr); 
+    latestRows = rows;
+    const tahuStatusHTML = renderTahuStatus(gorengData);
 
-            // Tambahkan class flex-1 dan text-center
-            return `<span class="flex-1 text-center" style="padding: 6px 0; border-radius: 6px; background-color: ${bgColor}; color: white; font-weight: bold; font-size: 1.1rem; line-height: 1.5;">${displayStr}</span>`;
-        }).join('');
-        
-        // Wrapper menggunakan flex dan space-x-2. Ini menggantikan pola-container yang sebelumnya.
-        tahuStatusHTML += `<div class="mt-2 flex space-x-2">${polaHTMLContent}</div>`;
-    }
-    // AKHIR LOGIKA STATUS TAHU GORENG
-
-    document.getElementById('last-updated').textContent = "Dimuat: " + dayjs().format("dddd, D MMM YYYY HH:mm");
-    
+    document.getElementById("last-updated").textContent = "Dimuat: " + dayjs().format("dddd, D MMM YYYY HH:mm");
     dayjs.extend(window.dayjs_plugin_relativeTime);
-    dayjs.locale('id');
+    dayjs.locale("id");
     const absoluteTime = dayjs(lastUpdatedFromServer).format("dddd, D MMMM YYYY HH:mm");
     const relativeTime = dayjs(lastUpdatedFromServer).fromNow();
-    
-    serverTimeDiv.innerHTML = `<strong>Data diupdate pada:</strong> ${absoluteTime} <span class="time-ago-badge">${relativeTime}</span>${tahuStatusHTML ? `<div class="mt-3 p-3 bg-white border rounded-lg">${tahuStatusHTML}</div>` : ''}`;
 
+    serverTimeDiv.innerHTML = `
+      <div class="flex flex-col gap-3">
+        <div><strong>Data diupdate pada:</strong> ${absoluteTime} <span class="time-ago-badge">${relativeTime}</span></div>
+        ${tahuStatusHTML}
+      </div>`;
 
-    const columns = [
-      {
-        title: "Barang",
-        data: null,
-        render: function(_, __, row) {
-          return `<div class="dt-img-name">
-                      <img src="${row.gambar}" alt="Gambar Barang">
-                      <span>${row.barang}</span>
-                  </div>`;
-        }
-      },
-      { title: "Stok", data: "tersedia", width: "100px" },
-      {
-        title: "Status",
-        data: 'statusObj.label',
-        width: "120px",
-        render: function(data, type, row) {
-          return `<span class="status-badge ${row.statusObj.cls}">${row.statusObj.icon} ${row.statusObj.label}</span>`;
-        }
-      }
-    ];
-
-    if(dt){
-      dt.clear(); dt.rows.add(rows).draw();
-    } else {
-      dt = new DataTable("#stokTable",{
-        data:rows,
-        columns,
-        pageLength:10,
-        language:{url:"https://cdn.datatables.net/plug-ins/2.0.8/i18n/id.json"}
-      });
-
-      $("#statusFilter").on("change",function(){
-        const v = this.value;
-        dt.column(2).search(v).draw();
-      });
-    }
-
-    const total = rows.length;
-    const aman = rows.filter(r => r.statusObj.label === "Aman").length;
-    const waspada = rows.filter(r => r.statusObj.label === "Waspada").length;
-    const bahaya = rows.filter(r => r.statusObj.label === "Bahaya").length;
-    document.getElementById("statTotal").textContent = total;
-    document.getElementById("statAman").textContent = aman;
-    document.getElementById("statAlert").textContent = waspada+bahaya;
-
-    if(chart) chart.destroy();
-    chart=new Chart(document.getElementById("ringkasanChart"),{
-      type:"doughnut",
-      data:{labels:["Aman","Waspada","Bahaya"],datasets:[{data:[aman,waspada,bahaya],backgroundColor:["#27ae60","#f1c40f","#e74c3c"]}]},
-      options:{plugins:{legend:{position:"bottom"}}}
-    });
-
-    regeneratePreview(rows, tahuStatusText); 
-
-  }catch(err){
+    renderTable(rows);
+    renderStats(rows);
+    regeneratePreview(rows, latestTahuStatusText);
+  } catch (err) {
     console.error(err);
-    document.getElementById('last-updated').textContent = "Gagal memuat data.";
-    serverTimeDiv.textContent = 'Gagal memuat waktu update data.';
+    document.getElementById("last-updated").textContent = "Gagal memuat data.";
+    serverTimeDiv.textContent = "Gagal memuat waktu update data.";
     alert("Terjadi kesalahan: " + err.message);
-  }finally{
-    $('#refreshBtn').prop('disabled', false).text("↻ Muat Ulang");
+  } finally {
+    setLoading(false);
   }
 }
 
-function regeneratePreview(rows, tahuStatusText = ""){
-  const now = dayjs().locale("id");
-  const header = `📢 ${now.format("dddd")} - ${now.format("D MMMM YYYY, HH:mm")}\nLaporan Stok Kali Ini:`;
-  
-  const sortedRows = rows.sort((a, b) => a.statusPriority - b.statusPriority);
+function renderTahuStatus(gorengData) {
+  const currentTahuStr = gorengData["Gorengan Tahu Ini"] || "0 Goreng";
+  const targetTahuStr = gorengData["Target Goreng"] || "0 Goreng";
+  const polaGorengStr = gorengData["Pola Goreng"] || "";
+  const currentTahu = parseInt(currentTahuStr.split(" ")[0], 10) || 0;
+  const targetTahu = parseInt(targetTahuStr.split(" ")[0], 10) || 0;
+  const polaGoreng = polaGorengStr.split(",").map((s) => s.trim()).filter(Boolean);
+  const targetArray = Array(targetTahu).fill("-").map((_, i) => polaGoreng[i] || "-");
 
-  let adaPeringatan = false;
-  const lines = sortedRows.map((r,i)=>{
-    if(r.statusObj.label!=="Aman") adaPeringatan=true;
-    return `${i+1}. ${r.barang} => ${r.tersedia} | ${r.statusObj.icon} ${r.statusObj.label}`;
-  });
-  
-  const tahuLine = tahuStatusText ? `\n\n--- Status Tambahan ---\n${tahuStatusText}` : "";
-  const footer = adaPeringatan ? "⚠️ Mohon cek stok yang menipis." : "✅ Semua stok aman, selamat menjalani usaha!";
-  
-  document.getElementById("waPreview").value = [header, tahuLine, "", ...lines, "", footer, "Info: https://ramadani1t.github.io/DB-Stock-Bot-Reminder"].join("\n");
+  latestTahuStatusText = `Status Target Tahu: ${currentTahu} / ${targetTahu} Goreng (Pola: ${polaGorengStr || "-"})`;
+  if (targetTahu <= 0) return "";
+
+  const polaHTMLContent = targetArray.map((str) => {
+    return `<span class="fry-pill" style="background-color:${getColorByStatus(str)}">${str}</span>`;
+  }).join("");
+
+  return `
+    <div class="rounded-lg border border-slate-200 bg-white p-3">
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <strong>Status Target Tahu</strong>
+        <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-black text-teal-800">${currentTahu} / ${targetTahu} Goreng</span>
+      </div>
+      <div class="flex flex-wrap gap-2">${polaHTMLContent}</div>
+    </div>`;
 }
 
-// Events
-$("#refreshBtn").on("click",loadData);
-$("#regenBtn").on("click",()=>{if(dt) loadData();}); 
-$("#copyBtn").on("click",()=>{
-  const el=document.getElementById("waPreview");
-  el.select();
-  document.execCommand("copy");
-  const btn=document.getElementById("copyBtn");
-  btn.textContent="✅ Disalin";
-  setTimeout(()=>btn.textContent="Salin Pesan",1500);
+function renderTable(rows) {
+  const columns = [
+    {
+      title: "Barang",
+      data: null,
+      render: function(_, __, row) {
+        return `<div class="dt-img-name">
+          <img src="${row.gambar}" alt="Gambar ${row.barang}" loading="lazy">
+          <div>
+            <div class="font-bold text-slate-800">${row.barang}</div>
+            ${row.id ? `<div class="text-xs font-semibold text-slate-400">${row.id}</div>` : ""}
+          </div>
+        </div>`;
+      }
+    },
+    { title: "Stok", data: "tersedia", width: "110px" },
+    {
+      title: "Status",
+      data: "statusObj.label",
+      width: "130px",
+      render: function(data, type, row) {
+        return `<span class="status-badge ${row.statusObj.cls}">${row.statusObj.icon} ${row.statusObj.label}</span>`;
+      }
+    }
+  ];
+
+  if (dt) {
+    dt.clear();
+    dt.rows.add(rows).draw();
+    return;
+  }
+
+  dt = new DataTable("#stokTable", {
+    data: rows,
+    columns,
+    pageLength: 10,
+    order: [[2, "asc"]],
+    language: { url: "https://cdn.datatables.net/plug-ins/2.0.8/i18n/id.json" }
+  });
+
+  $("#statusFilter").on("change", function() {
+    dt.column(2).search(this.value).draw();
+  });
+}
+
+function renderStats(rows) {
+  const total = rows.length;
+  const aman = rows.filter((r) => r.statusObj.label === "Aman").length;
+  const waspada = rows.filter((r) => r.statusObj.label === "Waspada").length;
+  const bahaya = rows.filter((r) => r.statusObj.label === "Bahaya").length;
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statAman").textContent = aman;
+  document.getElementById("statAlert").textContent = waspada + bahaya;
+
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById("ringkasanChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Aman", "Waspada", "Bahaya"],
+      datasets: [{ data: [aman, waspada, bahaya], backgroundColor: ["#16a34a", "#f59e0b", "#dc2626"], borderWidth: 0 }]
+    },
+    options: {
+      cutout: "64%",
+      plugins: { legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 8 } } }
+    }
+  });
+}
+
+function regeneratePreview(rows, tahuStatusText = "") {
+  const now = dayjs().locale("id");
+  const header = `📢 ${now.format("dddd")} - ${now.format("D MMMM YYYY, HH:mm")}\nLaporan Stok Kali Ini:`;
+  const sortedRows = [...rows].sort((a, b) => a.statusPriority - b.statusPriority);
+  let adaPeringatan = false;
+  const lines = sortedRows.map((r, i) => {
+    if (r.statusObj.label !== "Aman") adaPeringatan = true;
+    return `${i + 1}. ${r.barang} => ${r.tersedia} | ${r.statusObj.label}`;
+  });
+  const tahuLine = tahuStatusText ? `\n\n--- Status Tambahan ---\n${tahuStatusText}` : "";
+  const footer = adaPeringatan ? "⚠️ Mohon cek stok yang menipis." : "✅ Semua stok aman, selamat menjalani usaha!";
+  document.getElementById("waPreview").value = [header, tahuLine, "", ...lines, "", footer, "Info: https://dstock.tahunyakrispiya.my.id/"].join("\n");
+}
+
+$("#refreshBtn").on("click", loadData);
+$("#regenBtn").on("click", () => regeneratePreview(latestRows, latestTahuStatusText));
+$("#copyBtn").on("click", async () => {
+  const el = document.getElementById("waPreview");
+  try {
+    await navigator.clipboard.writeText(el.value);
+  } catch {
+    el.select();
+    document.execCommand("copy");
+  }
+  const btn = document.getElementById("copyBtn");
+  btn.textContent = "Disalin";
+  setTimeout(() => btn.textContent = "Salin Pesan", 1500);
 });
 
 loadData();
