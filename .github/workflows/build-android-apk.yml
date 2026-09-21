@@ -19,27 +19,22 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android 13 SDK Platform & Build-Tools
-        run: |
-          sdkmanager "platforms;android-33" "build-tools;33.0.2"
+          cache: 'gradle'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Generate Gradle Wrapper & Build APK
+      - name: Build Android 13 APK
         run: |
+          yes | sdkmanager --licenses || true
           cd mobile/android
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dstock-pos-android13.apk
+          name: dstock-pos-android13
           path: mobile/android/app/build/outputs/apk/release/*.apk
           retention-days: 14
