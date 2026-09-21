@@ -38,3 +38,10 @@ jobs:
           name: dstock-pos-android13
           path: mobile/android/app/build/outputs/apk/release/*.apk
           retention-days: 14
+
+      - name: Print Gradle Error Details
+        if: failure()
+        run: |
+          echo "=== BUILD REPORTS / LOGS ==="
+          ls -la mobile/android/app/build/ || true
+          find mobile/android/app/build -name "*.txt" -o -name "*.log" | xargs head -n 100 || true
