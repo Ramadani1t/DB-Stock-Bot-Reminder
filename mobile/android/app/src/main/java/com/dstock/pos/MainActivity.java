@@ -156,7 +156,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private Intent createHardwareCameraIntent() {
         try {
-            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date());
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
             File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
             if (storageDir == null) storageDir = getCacheDir();
 
