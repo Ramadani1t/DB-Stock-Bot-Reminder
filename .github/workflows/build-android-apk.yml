@@ -26,22 +26,28 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      - name: Accept Android SDK Licenses & Build APK
+      - name: Build Android 13 APK
         run: |
           yes | sdkmanager --licenses || true
           cd mobile/android
-          gradle assembleRelease --stacktrace --no-daemon
+          gradle assembleRelease --stacktrace --no-daemon 2>&1 | tee build.log
 
       - name: Upload APK Artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: dstock-pos-android13
           path: mobile/android/app/build/outputs/apk/release/*.apk
           retention-days: 14
 
-      - name: Print Gradle Error Details
-        if: failure()
+      - name: Publish Build Summary
+        if: always()
         run: |
-          echo "=== BUILD REPORTS / LOGS ==="
-          ls -la mobile/android/app/build/ || true
-          find mobile/android/app/build -name "*.txt" -o -name "*.log" | xargs head -n 100 || true
+          echo "## Android 13 APK Build Log" >> $GITHUB_STEP_SUMMARY
+          if [ -f mobile/android/build.log ]; then
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            tail -n 80 mobile/android/build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No build log generated." >> $GITHUB_STEP_SUMMARY
+          fi
