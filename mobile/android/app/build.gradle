@@ -2,12 +2,12 @@ apply plugin: "com.android.application"
 
 android {
     namespace "com.dstock.pos"
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.dstock.pos"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdk 33
+        targetSdk 33
         versionCode 1
         versionName "1.0.0"
     }
