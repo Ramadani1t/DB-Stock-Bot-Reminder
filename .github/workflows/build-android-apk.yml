@@ -24,10 +24,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.5'
+          cache-disabled: true
 
       - name: Setup Android SDK
         run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           echo "sdk.dir=$ANDROID_HOME" > mobile/android/local.properties
+          echo "Using Android SDK at: $ANDROID_HOME"
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
 
@@ -55,21 +59,26 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Publish Build Summary
+      - name: Publish Build Summary and Annotations
         if: always()
         run: |
+          if [ -f mobile/android/build.log ]; then
+            echo "=== GRADLE BUILD LOG ==="
+            cat mobile/android/build.log
+            # Post errors as GitHub annotations
+            grep -E -i "FAILURE:|error:|FAILED" mobile/android/build.log | head -n 15 | while IFS= read -r err; do
+              echo "::error title=Gradle Diagnostic::$err"
+            done
+          fi
           echo "## Android 13 APK Build Summary" >> $GITHUB_STEP_SUMMARY
           if ls mobile/android/app/build/outputs/apk/release/*.apk 1> /dev/null 2>&1; then
             echo "### ✅ Build Success!" >> $GITHUB_STEP_SUMMARY
-            echo "APK ready for download in the **Artifacts** section above." >> $GITHUB_STEP_SUMMARY
+            echo "APK generated successfully and available in Artifacts." >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ Build Failed or APK Not Found" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -f mobile/android/build.log ]; then
-            echo '<details><summary>Click to view build log (last 100 lines)</summary>' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 100 mobile/android/build.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo '</details>' >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
+            if [ -f mobile/android/build.log ]; then
+              echo '```text' >> $GITHUB_STEP_SUMMARY
+              tail -n 40 mobile/android/build.log >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
           fi
