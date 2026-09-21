@@ -825,13 +825,13 @@ export default {
     }
 
     // ── Route /pos & /kasir → Sajikan pos.html ───────────────────
-    if (url.pathname === "/pos" || url.pathname === "/kasir") {
+    if (url.pathname === "/pos" || url.pathname === "/pos/" || url.pathname === "/kasir" || url.pathname === "/kasir/") {
       const posUrl = new URL("/pos.html", request.url);
       return env.ASSETS.fetch(new Request(posUrl, request));
     }
 
     // ── Route /login → Sajikan login.html ─────────────────────────
-    if (url.pathname === "/login") {
+    if (url.pathname === "/login" || url.pathname === "/login/") {
       const loginUrl = new URL("/login.html", request.url);
       return env.ASSETS.fetch(new Request(loginUrl, request));
     }
