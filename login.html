@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Admin – DStock | Tahunya Krispi-ya!</title>
+  <meta name="description" content="Login administrator DStock Dashboard untuk pengelolaan stok dan log operasional." />
+  
+  <!-- Favicon & Touch Icon -->
+  <link rel="icon" type="image/png" href="/Images/logo.png" />
+  <link rel="apple-touch-icon" href="/Images/logo.png" />
+
+  <!-- Open Graph / WhatsApp Preview -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://dstock.tahunyakrispiya.my.id/login" />
+  <meta property="og:title" content="Login Admin – DStock Dashboard" />
+  <meta property="og:description" content="Portal administrator DStock untuk manajemen inventaris & log operasional." />
+  <meta property="og:image" content="https://dstock.tahunyakrispiya.my.id/Images/og-image.jpg" />
+  <meta property="og:image:width" content="1024" />
+  <meta property="og:image:height" content="1024" />
+
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --ink: #102033;
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --paper: rgba(255, 255, 255, .94);
+    }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(20, 184, 166, .22), transparent 32rem),
+        radial-gradient(circle at 88% 8%, rgba(251, 191, 36, .18), transparent 26rem),
+        linear-gradient(135deg, #f8fafc 0%, #eef7f4 48%, #fff8ea 100%);
+      color: var(--ink);
+      font-family: 'Plus Jakarta Sans', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .brand-font {
+      font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
+    .login-card {
+      background: var(--paper);
+      border: 1px solid rgba(148, 163, 184, .28);
+      box-shadow: 0 25px 60px rgba(15, 23, 42, .12);
+      backdrop-filter: blur(16px);
+    }
+    .control {
+      height: 42px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      padding: 0 12px;
+      font-size: .875rem;
+      outline: none;
+      width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .control:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .15);
+    }
+    .btn-submit {
+      height: 44px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      box-shadow: 0 10px 25px rgba(15, 118, 110, .25);
+    }
+    .btn-submit:hover { background: var(--brand-dark); }
+    .btn-submit:active { transform: translateY(1px); }
+  </style>
+</head>
+<body class="flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    
+    <!-- Top badge -->
+    <div class="text-center mb-6">
+      <div class="inline-flex justify-center mb-3">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-600 via-teal-700 to-emerald-800 flex items-center justify-center text-amber-300 shadow-xl shadow-teal-700/25 border border-teal-500/30 relative overflow-hidden group">
+          <div class="absolute -right-2 -top-2 w-8 h-8 bg-amber-400/20 rounded-full blur-sm pointer-events-none"></div>
+          <svg class="w-8 h-8 drop-shadow-sm transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m7.5 4.27 9 5.15"/>
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+            <path d="m3.3 7 8.7 5 8.7-5"/>
+            <path d="M12 22V12"/>
+          </svg>
+        </div>
+      </div>
+      <div class="flex items-center justify-center gap-2 mb-1.5 flex-wrap">
+        <span class="brand-font font-black text-3xl tracking-tight bg-gradient-to-r from-teal-900 via-teal-700 to-amber-700 bg-clip-text text-transparent">DStock</span>
+        <span class="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-extrabold text-teal-800 ring-1 ring-teal-200">
+          <span class="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+          Tahunya Krispi-ya!
+        </span>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight text-slate-800">Portal Login Admin</h1>
+      <p class="text-xs text-slate-500 mt-1">Masuk untuk mengelola stok, log sisa tahu, dan data operasional.</p>
+    </div>
+
+    <!-- Card -->
+    <div class="login-card rounded-2xl p-6 sm:p-8">
+      <!-- Error Alert -->
+      <div id="errorAlert" class="hidden mb-4 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+        <svg class="w-4 h-4 text-rose-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="errorMessage">Username atau password salah.</span>
+      </div>
+
+      <!-- Success Alert -->
+      <div id="successAlert" class="hidden mb-4 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 flex items-center gap-2">
+        <svg class="w-4 h-4 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        <span>Login berhasil! Mengalihkan ke dashboard...</span>
+      </div>
+
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label for="usernameInput" class="block text-xs font-bold text-slate-700 mb-1.5">Username Admin</label>
+          <div class="relative">
+            <input type="text" id="usernameInput" class="control pl-9" placeholder="admin" value="admin" required autocomplete="username" />
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label for="passwordInput" class="block text-xs font-bold text-slate-700 mb-1.5">Password Admin</label>
+          <div class="relative">
+            <input type="password" id="passwordInput" class="control pl-9 pr-10" placeholder="••••••••" required autocomplete="current-password" autofocus />
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <button type="button" id="togglePasswordBtn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition" aria-label="Toggle password visibility">
+              <svg id="eyeIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn-submit mt-2">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          <span id="btnText">Masuk sebagai Admin</span>
+        </button>
+      </form>
+
+      <div class="mt-6 pt-5 border-t border-slate-100 text-center">
+        <a href="/" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-teal-700 transition">
+          <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          <span>Kembali ke Dashboard (Mode Publik)</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer note -->
+    <div class="mt-6 text-center text-xs text-slate-400">
+      Tahunya Krispi-ya! &middot; DStock Enterprise System
+    </div>
+  </div>
+
+  <script>
+    // Toggle password visibility
+    const passwordInput = document.getElementById("passwordInput");
+    const togglePasswordBtn = document.getElementById("togglePasswordBtn");
+    const eyeIcon = document.getElementById("eyeIcon");
+
+    togglePasswordBtn.addEventListener("click", () => {
+      const isPassword = passwordInput.type === "password";
+      passwordInput.type = isPassword ? "text" : "password";
+      eyeIcon.innerHTML = isPassword 
+        ? `<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>`
+        : `<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>`;
+    });
+
+    // Cek jika sudah login sebelumnya
+    const existingToken = localStorage.getItem("dstock_admin_token");
+    if (existingToken) {
+      fetch("/api/auth/me", {
+        headers: { "Authorization": "Bearer " + existingToken }
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.authenticated) {
+          window.location.href = "/";
+        }
+      })
+      .catch(() => {});
+    }
+
+    // Form submit handler
+    const loginForm = document.getElementById("loginForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const btnText = document.getElementById("btnText");
+    const errorAlert = document.getElementById("errorAlert");
+    const errorMessage = document.getElementById("errorMessage");
+    const successAlert = document.getElementById("successAlert");
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorAlert.classList.add("hidden");
+      successAlert.classList.add("hidden");
+      
+      const username = document.getElementById("usernameInput").value.trim();
+      const password = passwordInput.value;
+
+      submitBtn.disabled = true;
+      btnText.textContent = "Memverifikasi...";
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success && data.token) {
+          localStorage.setItem("dstock_admin_token", data.token);
+          localStorage.setItem("dstock_admin_user", data.user || username);
+          successAlert.classList.remove("hidden");
+          btnText.textContent = "Berhasil!";
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 800);
+        } else {
+          errorMessage.textContent = data.error || "Username atau password salah.";
+          errorAlert.classList.remove("hidden");
+          submitBtn.disabled = false;
+          btnText.textContent = "Masuk sebagai Admin";
+          passwordInput.select();
+        }
+      } catch (err) {
+        errorMessage.textContent = "Gagal menghubungi server: " + err.message;
+        errorAlert.classList.remove("hidden");
+        submitBtn.disabled = false;
+        btnText.textContent = "Masuk sebagai Admin";
+      }
+    });
+  </script>
+</body>
+</html>

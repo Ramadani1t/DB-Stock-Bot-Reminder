@@ -5,3 +5,7 @@ Thumbs.db
 node_modules/
 dist/
 .wrangler/
+mobile/android/.gradle/
+mobile/android/app/build/
+.gradle/
+build/

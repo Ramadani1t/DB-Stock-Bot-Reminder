@@ -1,15 +1,25 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "dstock-dashboard",
+  "main": "src/index.js",
   "compatibility_date": "2026-07-20",
   "assets": {
     "directory": "./dist/public",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS"
   },
   "routes": [
     {
       "pattern": "dstock.tahunyakrispiya.my.id",
       "custom_domain": true
     }
-  ]
+  ],
+  "r2_buckets": [
+    {
+      "binding": "LOGS_BUCKET",
+      "bucket_name": "dstock-logs"
+    }
+  ],
+  "vars": {
+    "WA_ADMIN_NUMBERS": "6285864917815,6281250502920,6281288362512,6289518007805"
+  }
 }

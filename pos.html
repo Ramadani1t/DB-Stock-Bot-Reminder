@@ -1,0 +1,2499 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Kasir POS & Simulasi Stok – DStock | Tahunya Krispi-ya!</title>
+  <meta name="description" content="Aplikasi Web POS Kasir cepat untuk Tahunya Krispi-ya! dengan integrasi QRISKas, draft simulasi pemotongan tahu mentah real-time, dan sistem persetujuan (approval)." />
+
+  <!-- PWA & Mobile Web App Meta -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DStock Kasir" />
+
+  <!-- Favicon & Icons -->
+  <link rel="icon" type="image/png" href="/Images/logo.png" />
+  <link rel="apple-touch-icon" href="/Images/logo.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/id.js"></script>
+
+  <style>
+    :root {
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --brand-light: #f0fdfa;
+      --accent: #f59e0b;
+      --ink: #0f172a;
+      --paper: rgba(255, 255, 255, 0.95);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(20, 184, 166, 0.18), transparent 30rem),
+        radial-gradient(circle at 90% 10%, rgba(245, 158, 11, 0.15), transparent 26rem),
+        linear-gradient(135deg, #f8fafc 0%, #f1f7f5 50%, #fffbf0 100%);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .brand-font {
+      font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* Custom Glass Panel */
+    .glass-card {
+      background: var(--paper);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      backdrop-filter: blur(14px);
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Touch active feedback */
+    .touch-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Pulse animation for QRIS mode */
+    @keyframes pulse-border {
+      0%, 100% { border-color: rgba(245, 158, 11, 0.8); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+      50% { border-color: rgba(245, 158, 11, 1); box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+    }
+    .qris-active-glow {
+      animation: pulse-border 2s infinite ease-in-out;
+    }
+
+    /* Mobile Cart Drawer & Backdrop */
+    @media (max-width: 1023px) {
+      .mobile-cart-drawer {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 88vh !important;
+        max-height: 88vh !important;
+        z-index: 50 !important;
+        border-radius: 24px 24px 0 0 !important;
+        box-shadow: 0 -15px 50px rgba(15, 23, 42, 0.3) !important;
+        transform: translateY(105%);
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .mobile-cart-drawer.open {
+        transform: translateY(0%) !important;
+      }
+      .mobile-cart-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(4px);
+        z-index: 45;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+      }
+      .mobile-cart-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .mobile-cart-drawer {
+        position: static !important;
+        height: 100% !important;
+        transform: none !important;
+        border-radius: 0 !important;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+      }
+      .mobile-cart-backdrop {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 1. TOP BAR NAVIGATION & STOCK MASTER INDICATOR                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 py-2 sm:px-6 sm:py-2.5 shrink-0 z-20">
+    <div class="flex items-center justify-between gap-2 max-w-[1600px] mx-auto">
+      
+      <!-- Brand & Mobile Live Stock Status -->
+      <div class="flex items-center gap-2.5">
+        <a href="/" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-teal-700 to-emerald-900 flex items-center justify-center text-amber-300 shadow-sm border border-teal-500/20 shrink-0 transition active:scale-95" title="Kembali ke Dashboard">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m7.5 4.27 9 5.15"/>
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+            <path d="m3.3 7 8.7 5 8.7-5"/>
+            <path d="M12 22V12"/>
+          </svg>
+        </a>
+        
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="brand-font font-black text-lg sm:text-xl tracking-tight text-teal-950 leading-none">DStock Kasir</span>
+            <span class="hidden sm:inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-900 px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-wider">
+              Gerai
+            </span>
+          </div>
+          <p class="text-[0.65rem] text-slate-400 font-medium leading-tight hidden sm:block">Tahunya Krispi-ya! &bull; Kasir POS Cepat</p>
+        </div>
+
+        <!-- Mobile Live Sisa Tahu Indicator Badge -->
+        <div class="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/90 text-emerald-800 px-2 py-1 rounded-lg text-xs font-black shadow-xs ml-1" title="Sisa Tahu Hari Ini">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="mobileStockPill">242 pcs</span>
+        </div>
+      </div>
+
+      <!-- Desktop Live Master Strip (Hidden on Mobile) -->
+      <div class="hidden lg:flex items-center gap-2.5 bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5 text-xs">
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-bold text-[0.65rem] uppercase">Awal:</span>
+          <span id="headerTotalAwal" class="font-extrabold text-slate-800">242 pcs (2 Papan)</span>
+        </div>
+        <span class="text-slate-300">|</span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-amber-600 font-bold text-[0.65rem] uppercase">Potong:</span>
+          <span id="headerTerpotongResmi" class="font-black text-amber-700">0 pcs</span>
+        </div>
+        <span class="text-slate-300">|</span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-bold text-[0.65rem] uppercase">Sisa Resmi:</span>
+          <span id="headerSisaTahu" class="font-black text-emerald-700 inline-flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            242 pcs
+          </span>
+        </div>
+      </div>
+
+      <!-- Cashier Action Controls Right -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <!-- PWA 1-Tap Install Button (No Android Studio needed) -->
+        <button id="btnPwaInstall" onclick="installPwaApp()" class="hidden touch-btn h-8 sm:h-9 px-2 sm:px-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs font-black rounded-xl shadow-xs flex items-center gap-1 transition active:scale-95" title="Pasang Aplikasi Kasir Mandiri (0 MB)">
+          <svg class="w-3.5 h-3.5 text-emerald-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span class="hidden sm:inline text-[0.7rem]">Pasang APK</span>
+        </button>
+
+        <!-- QRIS Pending Inbox Button -->
+        <button id="btnQrisPending" onclick="openQrisPendingModal()" class="touch-btn h-8 sm:h-9 px-2 sm:px-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl flex items-center gap-1.5 transition active:scale-95" title="Antrean Foto Bukti QRIS">
+          <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/></svg>
+          <span class="hidden xs:inline text-[0.72rem] font-bold">QRIS Pending</span>
+          <span id="badgeQrisPendingCount" class="bg-amber-600 text-white text-[0.62rem] px-1.5 py-0.2 rounded-full font-black">0</span>
+        </button>
+
+        <!-- Instant Rear Camera Trigger -->
+        <button onclick="openLiveCamera()" class="touch-btn h-8 sm:h-9 px-2.5 sm:px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95" title="Buka Kamera Belakang">
+          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+          <span class="hidden xs:inline text-[0.72rem]">Kamera</span>
+        </button>
+
+        <!-- Riwayat Transaksi with Badge -->
+        <button id="btnRiwayatTransaksi" onclick="openRiwayatModal()" class="touch-btn h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200/90 flex items-center gap-1.5 transition active:scale-95" title="Riwayat Transaksi">
+          <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+          <span class="hidden md:inline text-[0.72rem]">Riwayat</span>
+          <span id="badgeCountTransaksi" class="bg-teal-800 text-white text-[0.62rem] px-1.5 py-0.2 rounded-full font-black">0</span>
+        </button>
+
+        <!-- Menu Settings -->
+        <button onclick="openMenuManagerModal()" class="touch-btn h-8 sm:h-9 w-8 sm:w-9 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200/90 flex items-center justify-center transition active:scale-95" title="Kelola Menu & Harga">
+          <svg class="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+
+        <!-- Dashboard Link -->
+        <a href="/" class="touch-btn h-8 sm:h-9 px-2.5 sm:px-3 bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-bold rounded-xl border border-teal-200/90 flex items-center gap-1 transition active:scale-95" title="Dashboard Stok Master">
+          <svg class="w-3.5 h-3.5 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          <span class="hidden sm:inline text-[0.72rem]">Stok</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 1.5 DRAFT SIMULATION & APPROVAL STRIP (Requested by User)           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- Mobile Compact Draft Alert Banner (< 1024px, only visible when pendingDrafts > 0) -->
+  <div id="mobileDraftBanner" class="lg:hidden hidden bg-gradient-to-r from-amber-500 to-amber-600 text-white px-3 py-1.5 text-xs font-bold flex items-center justify-between shadow-xs border-b border-amber-600/40 shrink-0">
+    <div class="flex items-center gap-1.5 min-w-0">
+      <span class="w-2 h-2 rounded-full bg-white animate-ping shrink-0"></span>
+      <span id="mobileDraftText" class="truncate text-[0.72rem] font-black">0 Draft (0 pcs)</span>
+    </div>
+    <button onclick="openApprovalModal()" class="touch-btn bg-white text-amber-950 hover:bg-amber-100 px-2.5 py-0.5 rounded-md text-[0.68rem] font-black shrink-0 shadow-xs transition active:scale-95">
+      Setujui & Potong
+    </button>
+  </div>
+
+  <!-- Desktop Draft Strip (>= 1024px) -->
+  <div id="draftApprovalStrip" class="hidden lg:flex bg-gradient-to-r from-amber-500/10 via-amber-400/15 to-teal-500/10 border-b border-amber-300/80 px-3 py-1.5 sm:px-6 shrink-0 z-10 flex-wrap items-center justify-between gap-2 text-xs backdrop-blur-sm">
+    <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-200/90 text-amber-950 font-black text-[0.68rem] uppercase tracking-wider shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-amber-600 animate-ping"></span>
+        Simulasi Draft Kasir
+      </span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-slate-600 font-bold">Draft Tahu Terkumpul:</span>
+        <span id="stripDraftTofu" class="font-black text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md">0 pcs (0 order)</span>
+      </div>
+      <span class="text-slate-300 hidden sm:inline">|</span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-slate-600 font-bold">Simulasi Sisa Tahu:</span>
+        <span id="stripSimulasiSisa" class="font-extrabold text-teal-900 bg-teal-100/80 px-2 py-0.5 rounded-md">242 pcs</span>
+      </div>
+      <span class="text-[0.68rem] text-slate-500 hidden xl:inline">
+        (Data tertampung sementara di antrean draft simulasi, butuh persetujuan admin untuk potong resmi)
+      </span>
+    </div>
+
+    <!-- Approval Action Button -->
+    <div class="flex items-center gap-2">
+      <button onclick="openApprovalModal()" class="touch-btn h-8 px-3.5 bg-gradient-to-r from-amber-600 to-teal-700 hover:from-amber-700 hover:to-teal-800 text-white font-black text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        <span>Persetujuan & Potong Stok</span>
+        <span id="badgePendingApprovalCount" class="bg-white text-amber-950 px-1.5 py-0.2 rounded-full font-black text-[0.65rem]">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- 2. MAIN SPLIT INTERFACE (CATALOG + CART/CHECKOUT)                  -->
+  <!-- =================================================================== -->
+  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden max-w-[1600px] w-full mx-auto">
+    <!-- LEFT: CATALOG & SPECIAL QRIS QUICK ACTION (60-65% width on desktop) -->
+    <section class="flex-1 flex flex-col h-full overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-200/80 bg-slate-50/40">
+      <!-- QUICK QRIS SNAP-FIRST BANNER (Compact & Direct Camera Action) -->
+      <div class="hidden lg:block p-3 sm:p-4 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white shadow-md shadow-amber-900/10 shrink-0">
+        <div class="flex flex-row items-center justify-between gap-2">
+          <div class="min-w-0 flex items-center gap-2">
+            <span class="inline-flex items-center justify-center bg-white/20 rounded-xl p-2 shrink-0">
+              <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                <circle cx="12" cy="13" r="3"/>
+              </svg>
+            </span>
+            <div class="min-w-0">
+              <h2 class="brand-font font-black text-sm sm:text-base leading-tight tracking-tight truncate">Mode Kilat QRIS & QRISKas</h2>
+              <p class="text-[0.65rem] sm:text-xs text-amber-100 font-medium truncate hidden xs:block">Foto struk/layar pembeli via kamera belakang &bull; Sat-set langsung masuk draft</p>
+            </div>
+          </div>
+
+          <!-- Snap First Action Buttons -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <!-- Hidden native camera input for fallback -->
+            <input type="file" id="qrisCameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleQrisPhotoCaptured(event)" />
+            
+            <button onclick="triggerQrisSnap()" class="touch-btn h-9 sm:h-10 px-3 sm:px-4 bg-white hover:bg-amber-50 text-amber-950 font-black text-xs sm:text-sm rounded-xl shadow-md flex items-center justify-center gap-1.5 transition active:scale-95">
+              <svg class="w-4 h-4 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+              </svg>
+              <span>Kamera Bukti</span>
+            </button>
+
+            <button id="btnResetQrisPhoto" onclick="clearQrisPhoto()" class="hidden touch-btn h-9 sm:h-10 px-2.5 bg-red-600/90 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1 transition" title="Hapus foto terlampir">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Indicator of attached QRIS photo if any -->
+        <div id="qrisAttachedBanner" class="hidden mt-2 p-2 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-between gap-2 border border-white/30 text-xs">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <img id="qrisAttachedThumb" src="" alt="Thumbnail QRIS" class="w-8 h-8 rounded-lg object-cover border border-white/50 shrink-0 cursor-pointer" onclick="viewCurrentQrisPhoto()" />
+            <div class="truncate">
+              <p class="font-extrabold text-white truncate flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 text-emerald-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Foto QRIS / QRISKas Terlampir!
+              </p>
+              <p class="text-[0.65rem] text-amber-100">Tap menu di bawah, foto otomatis tertaut ke orderan.</p>
+            </div>
+          </div>
+          <button onclick="viewCurrentQrisPhoto()" class="text-white hover:underline text-[0.7rem] font-bold shrink-0">Lihat</button>
+        </div>
+      </div>
+
+      <!-- Categories Filter Tabs (Clean Minimal Cashier Glyphs) -->
+      <div class="px-3 py-2 bg-white border-b border-slate-200/80 flex items-center justify-between gap-2 shrink-0 overflow-x-auto">
+        <div class="flex items-center gap-1.5 min-w-max" id="categoryFilterContainer">
+          <button onclick="filterCategory('all')" class="cat-btn active h-8 px-3 rounded-xl text-xs font-bold transition bg-teal-800 text-white flex items-center gap-1.5 shadow-xs" data-cat="all">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+            <span>Semua</span>
+          </button>
+          <button onclick="filterCategory('paket')" class="cat-btn h-8 px-3 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5" data-cat="paket">
+            <svg class="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg>
+            <span>Porsi Tahu</span>
+          </button>
+          <button onclick="filterCategory('topping')" class="cat-btn h-8 px-3 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5" data-cat="topping">
+            <svg class="w-3.5 h-3.5 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2v2M14 2v2M16 8a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v11a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4ZM6 8h12"/></svg>
+            <span>Bumbu & Saus</span>
+          </button>
+          <button onclick="filterCategory('minuman')" class="cat-btn h-8 px-3 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5" data-cat="minuman">
+            <svg class="w-3.5 h-3.5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4ZM6 2v2M10 2v2M14 2v2"/></svg>
+            <span>Minuman</span>
+          </button>
+        </div>
+
+        <div class="relative w-32 sm:w-44 shrink-0">
+          <input type="text" id="menuSearchInput" oninput="filterMenuSearch(this.value)" placeholder="Cari menu..." class="w-full h-8 pl-7 pr-2 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 outline-none focus:border-teal-600" />
+          <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+      </div>
+
+      <!-- Menu Grid Cards Container (Scrollable) -->
+      <div class="flex-1 overflow-y-auto p-3 sm:p-4 pb-24 lg:pb-4">
+        <div id="menuCardsGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3.5">
+          <!-- Rendered dynamically by JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: CART & BILLING PANEL (Drawer on mobile, 420px sidebar on desktop) -->
+    <section id="cartPanelDrawer" class="mobile-cart-drawer w-full lg:w-[420px] xl:w-[460px] flex flex-col h-full bg-white shadow-xl z-50 shrink-0">
+      
+      <!-- Mobile Drawer Swipe/Pull Handle Indicator -->
+      <div class="w-12 h-1 bg-slate-300 rounded-full mx-auto my-2 lg:hidden"></div>
+
+      <!-- Cart Header -->
+      <div class="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+        <div>
+          <h2 class="brand-font font-black text-slate-900 text-base leading-tight flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+            Pesanan Berjalan
+          </h2>
+          <p id="orderNumberLabel" class="text-[0.68rem] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Order #TK-001</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="clearCart()" class="touch-btn text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition" title="Hapus semua pesanan">
+            Kosongkan
+          </button>
+          <button onclick="toggleMobileCart(false)" class="lg:hidden w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center text-sm" title="Tutup">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Tofu Deduction Stat for Current Cart -->
+      <div class="bg-teal-50/80 border-b border-teal-200/80 px-4 py-2 flex items-center justify-between text-xs shrink-0">
+        <div class="flex items-center gap-1.5 text-teal-900 font-bold">
+          <svg class="w-4 h-4 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          <span>Potongan Tahu Pesanan Ini:</span>
+        </div>
+        <div class="text-right">
+          <span id="cartTofuTotal" class="font-black text-sm text-teal-800">0 pcs</span>
+          <span id="cartPapanEstimate" class="text-[0.65rem] text-teal-600 block">(0.0 papan)</span>
+        </div>
+      </div>
+
+      <!-- Cart Item List (Scrollable) -->
+      <div class="flex-1 overflow-y-auto p-3">
+        <!-- Empty state placeholder -->
+        <div id="cartEmptyState" class="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
+          <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+            <svg class="w-8 h-8 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          </div>
+          <p class="font-bold text-slate-600 text-sm">Keranjang Masih Kosong</p>
+          <p class="text-xs text-slate-400 mt-1 max-w-[200px]">Pilih menu di sebelah kiri atau klik <strong>Foto Bukti QRIS</strong> di atas.</p>
+        </div>
+        <div id="cartItemList" class="space-y-2 hidden"></div>
+      </div>
+
+      <!-- Payment Method Selection & Checkout Controls (Fixed Bottom) -->
+      <div class="border-t border-slate-200 bg-slate-50 p-3 sm:p-4 shrink-0 space-y-3">
+        
+        <!-- Payment Mode Segmented Button -->
+        <div>
+          <label class="block text-[0.68rem] font-black uppercase text-slate-500 tracking-wider mb-1">Metode Pembayaran</label>
+          <div class="grid grid-cols-2 gap-2 bg-slate-200/80 p-1 rounded-xl">
+            <button id="payModeQrisBtn" onclick="setPaymentMethod('qris')" class="touch-btn h-9 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition bg-white text-teal-900 shadow-sm">
+              <svg class="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+              <span>QRIS / QRISKas</span>
+            </button>
+            <button id="payModeCashBtn" onclick="setPaymentMethod('cash')" class="touch-btn h-9 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition text-slate-600 hover:text-slate-900">
+              <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+              <span>Tunai (Cash)</span>
+            </button>
+          </div>
+
+          <!-- QRISKas Integration Input (Shown when QRIS active) -->
+          <div id="qriskasDetailSection" class="mt-2 p-2 bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-200 rounded-xl space-y-1 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-[0.68rem] font-bold text-blue-900 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+                Ref Transaksi QRISKas:
+              </span>
+              <button type="button" onclick="generateQriskasRef()" class="text-[0.65rem] text-teal-700 font-bold hover:underline">
+                Generate Ref
+              </button>
+            </div>
+            <input type="text" id="qriskasRefInput" placeholder="Contoh: QK-89210 (Opsional / dari aplikasi QRISKas)" class="w-full h-8 px-2.5 bg-white border border-blue-300 rounded-lg text-xs text-slate-800 outline-none focus:border-blue-600 font-mono" />
+          </div>
+        </div>
+
+        <!-- Cash Quick Numpad / Preset (Shown only if Cash active) -->
+        <div id="cashInputSection" class="hidden space-y-2 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-900">Uang Diterima:</span>
+            <input type="number" id="cashReceivedInput" oninput="calculateChange()" placeholder="Rp 0" class="w-32 h-8 px-2 text-right font-black text-sm bg-white border border-emerald-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div class="flex items-center gap-1 overflow-x-auto pb-1">
+            <button onclick="setQuickCash('exact')" class="touch-btn h-7 px-2 bg-emerald-700 text-white rounded text-[0.65rem] font-bold shrink-0">Uang Pas</button>
+            <button onclick="setQuickCash(10000)" class="touch-btn h-7 px-2 bg-white border border-emerald-300 text-emerald-900 rounded text-[0.65rem] font-bold shrink-0">10rb</button>
+            <button onclick="setQuickCash(20000)" class="touch-btn h-7 px-2 bg-white border border-emerald-300 text-emerald-900 rounded text-[0.65rem] font-bold shrink-0">20rb</button>
+            <button onclick="setQuickCash(50000)" class="touch-btn h-7 px-2 bg-white border border-emerald-300 text-emerald-900 rounded text-[0.65rem] font-bold shrink-0">50rb</button>
+            <button onclick="setQuickCash(100000)" class="touch-btn h-7 px-2 bg-white border border-emerald-300 text-emerald-900 rounded text-[0.65rem] font-bold shrink-0">100rb</button>
+          </div>
+          <div class="flex items-center justify-between text-xs pt-1 border-t border-emerald-200">
+            <span class="font-bold text-slate-600">Kembalian:</span>
+            <span id="cashChangeLabel" class="font-black text-sm text-emerald-800">Rp 0</span>
+          </div>
+        </div>
+
+        <!-- Total Price Summary -->
+        <div class="flex items-baseline justify-between pt-1">
+          <span class="text-xs font-black uppercase text-slate-500 tracking-wider">Total Tagihan</span>
+          <span id="cartTotalPrice" class="brand-font font-black text-2xl text-teal-900">Rp 0</span>
+        </div>
+
+        <!-- Main Action: Simpan ke Draft Simulasi -->
+        <button id="btnSubmitOrder" onclick="completeTransaction()" class="touch-btn w-full h-12 bg-gradient-to-r from-teal-700 to-emerald-800 hover:from-teal-800 hover:to-emerald-900 text-white font-black text-sm rounded-xl shadow-lg shadow-teal-900/20 flex items-center justify-center gap-2 transition">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="btnSubmitOrderText">Simpan Transaksi (Masuk Draft Simulasi)</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- MOBILE RESPONSIVE FLOATING CART BAR & BACKDROP (< 1024px)          -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="mobileCartBackdrop" onclick="toggleMobileCart(false)" class="mobile-cart-backdrop"></div>
+
+  <div id="mobileFloatingCartBar" onclick="toggleMobileCart(true)" class="lg:hidden fixed bottom-0 inset-x-0 bg-teal-950/95 text-white px-4 py-2.5 z-30 shadow-2xl flex items-center justify-between border-t border-teal-700/60 backdrop-blur-md cursor-pointer">
+    <div class="flex items-center gap-2.5 min-w-0">
+      <div class="w-10 h-10 rounded-xl bg-amber-500 text-amber-950 flex items-center justify-center font-black text-sm shadow-md shrink-0">
+        <span id="mobileCartItemCount">0</span>
+      </div>
+      <div class="truncate">
+        <p id="mobileCartTotal" class="brand-font font-black text-base text-white leading-tight">Rp 0</p>
+        <p id="mobileCartTofu" class="text-[0.68rem] text-teal-200 leading-tight truncate">Potong: 0 pcs tahu</p>
+      </div>
+    </div>
+    <button type="button" class="touch-btn h-9 px-3.5 bg-amber-500 hover:bg-amber-400 text-amber-950 font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md shrink-0">
+      <span>Cek Order & Bayar</span>
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 3. MODAL: PREVIEW FOTO BUKTI QRIS                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 2.9 MODAL: LIVE HARDWARE REAR CAMERA SCANNER (In-App Viewfinder)    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="modalLiveCamera" class="fixed inset-0 z-50 hidden flex flex-col bg-slate-950 text-white">
+    <!-- Camera Top Bar -->
+    <div class="px-4 py-3 bg-slate-950/85 backdrop-blur-md flex items-center justify-between z-10 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+        <span class="font-black text-sm tracking-wide flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+          Kamera Belakang
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnToggleTorch" type="button" onclick="toggleLiveTorch()" class="hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95" title="Senter / Flashlight">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6c0 2-2 4-2 7v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-4c0-3-2-5-2-7a6 6 0 1 1 12 0Z"/><line x1="12" y1="13" x2="12" y2="13.01"/><line x1="12" y1="9" x2="12" y2="9.01"/></svg>
+        </button>
+        <button type="button" onclick="flipLiveCamera()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95" title="Putar Kamera Belakang/Depan">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        </button>
+        <button type="button" onclick="closeLiveCamera()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95" title="Tutup Kamera">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Video Viewfinder Area -->
+    <div class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
+      <video id="liveCameraVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+      <canvas id="liveCameraCanvas" class="hidden"></canvas>
+
+      <!-- Targeting Guideline Overlay (Box target) -->
+      <div class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
+        <div class="w-72 h-72 max-w-[82vw] max-h-[82vw] border-2 border-dashed border-amber-400/90 rounded-2xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]">
+          <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-amber-400 rounded-tl-lg"></div>
+          <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-amber-400 rounded-tr-lg"></div>
+          <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-amber-400 rounded-bl-lg"></div>
+          <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-amber-400 rounded-br-lg"></div>
+        </div>
+        <p class="mt-4 text-[0.72rem] font-bold text-white bg-slate-900/80 px-3.5 py-1.5 rounded-full backdrop-blur-md shadow-lg text-center border border-white/10">
+          Arahkan kamera ke layar HP bukti QRIS / struk pembeli
+        </p>
+      </div>
+    </div>
+
+    <!-- Camera Bottom Controls Bar -->
+    <div class="p-4 bg-slate-950/90 backdrop-blur-md flex items-center justify-around z-10 border-t border-white/10">
+      <!-- File picker fallback -->
+      <button type="button" onclick="triggerNativeFileInput()" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition active:scale-95">
+        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+          <svg class="w-5 h-5 text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+        </div>
+        <span class="text-[0.62rem] font-bold">Galeri File</span>
+      </button>
+
+      <!-- Multi-Snap into Pending Queue (Jam Sibuk) -->
+      <button type="button" onclick="snapPendingQrisPhoto()" class="flex flex-col items-center gap-1 text-amber-300 hover:text-amber-200 transition active:scale-90" title="Jepret Simpan ke Antrean Pending">
+        <div class="relative w-12 h-12 rounded-2xl bg-amber-500/20 border-2 border-amber-400/60 flex items-center justify-center shadow-lg">
+          <svg class="w-6 h-6 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/><path d="M12 9v6M9 12h6"/></svg>
+          <span id="cameraPendingBadge" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-amber-950 text-[0.62rem] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm">0</span>
+        </div>
+        <span class="text-[0.62rem] font-extrabold text-amber-300 tracking-tight">+ Antrean QRIS</span>
+      </button>
+
+      <!-- Main Shutter Button (Jepret Order Langsung) -->
+      <button type="button" onclick="takeLivePhoto()" class="w-18 h-18 rounded-full bg-white p-1.5 shadow-2xl active:scale-90 transition-transform flex items-center justify-center" title="Jepret & Langsung Order">
+        <div class="w-full h-full rounded-full border-4 border-slate-900 bg-gradient-to-tr from-amber-500 to-amber-400 flex items-center justify-center shadow-inner">
+          <svg class="w-7 h-7 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/></svg>
+        </div>
+      </button>
+
+      <!-- Cancel button -->
+      <button type="button" onclick="closeLiveCamera()" class="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition active:scale-95">
+        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+          <svg class="w-5 h-5 text-rose-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+        </div>
+        <span class="text-[0.62rem] font-bold">Batal</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="modalQrisPreview" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-sm p-4 bg-white rounded-2xl shadow-2xl relative">
+      <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+        <h3 class="font-black text-slate-900 text-sm flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          Bukti Pembayaran QRIS / QRISKas
+        </h3>
+        <button onclick="closeQrisPreviewModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold leading-none">&times;</button>
+      </div>
+      <div class="rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center max-h-[60vh]">
+        <img id="modalQrisImg" src="" alt="Bukti QRIS" class="w-full h-auto object-contain" />
+      </div>
+      <div class="mt-3 flex items-center gap-2">
+        <button onclick="triggerQrisSnap()" class="touch-btn flex-1 h-9 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5">
+          <span>Ganti Foto</span>
+        </button>
+        <button onclick="closeQrisPreviewModal()" class="touch-btn h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 3.5 MODAL: ANTREAN FOTO QRIS PENDING (Batch Quick-Snap Jam Sibuk)   -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="modalQrisPending" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-xl p-4 sm:p-5 bg-white rounded-2xl shadow-2xl relative max-h-[90vh] flex flex-col">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 shrink-0">
+        <div>
+          <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-950 font-black text-[0.65rem] uppercase tracking-wider mb-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+            Inbox Bukti Bayar Gerai
+          </div>
+          <h3 class="brand-font font-black text-slate-900 text-base sm:text-lg flex items-center gap-1.5">
+            <svg class="w-5 h-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/></svg>
+            Antrean Foto QRIS Pending
+          </h3>
+          <p class="text-[0.7rem] text-slate-500 mt-0.5">Bukti foto QRIS yang dijepret saat jam sibuk. Pilih foto untuk periksa nominal & input menunya.</p>
+        </div>
+        <button onclick="closeQrisPendingModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold leading-none p-1">&times;</button>
+      </div>
+
+      <!-- Pending Grid / List (Scrollable) -->
+      <div class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+        <div id="qrisPendingEmptyState" class="py-12 text-center text-slate-400">
+          <div class="w-14 h-14 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2.5">
+            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+          </div>
+          <p class="font-extrabold text-slate-700 text-sm">Tidak Ada Antrean QRIS Pending</p>
+          <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Saat pembeli ramai, buka kamera lalu tekan tombol <strong>"⚡ + Antrean QRIS"</strong> untuk jepret bukti bayar berturut-turut.</p>
+        </div>
+        <div id="qrisPendingCardsList" class="space-y-2.5 hidden"></div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-3 border-t border-slate-200 flex items-center justify-between gap-2 shrink-0">
+        <button onclick="openLiveCamera(); closeQrisPendingModal();" class="touch-btn h-9 px-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/></svg>
+          <span>+ Foto QRIS Baru</span>
+        </button>
+        <button onclick="closeQrisPendingModal()" class="touch-btn h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 3.6 MODAL: DETAIL ZOOM BUKTI QRIS ("Make Sure Liat Foto Krisnya")     -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="modalQrisDetailZoom" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/90 backdrop-blur-md">
+    <div class="glass-card w-full max-w-md p-4 bg-white rounded-2xl shadow-2xl relative flex flex-col max-h-[92vh]">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 shrink-0">
+        <div>
+          <h4 class="font-black text-slate-900 text-sm flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Periksa Detail Bukti QRIS
+          </h4>
+          <p id="zoomQrisMeta" class="text-[0.68rem] text-slate-500 font-mono mt-0.5">Jam: 13:08:24 &bull; Ref: QK-89210</p>
+        </div>
+        <button onclick="closeQrisDetailZoom()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold leading-none p-1">&times;</button>
+      </div>
+
+      <!-- High-res Image Preview Container -->
+      <div class="flex-1 overflow-auto rounded-xl bg-slate-900 flex items-center justify-center p-1 min-h-[260px]">
+        <img id="zoomQrisImg" src="" alt="Detail Bukti QRIS" class="w-full h-auto max-h-[60vh] object-contain rounded-lg" />
+      </div>
+
+      <!-- Bottom Action to Assign Order -->
+      <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between gap-2 shrink-0">
+        <button onclick="closeQrisDetailZoom()" class="touch-btn h-9 px-3 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl">
+          Kembali
+        </button>
+        <button id="btnZoomUseOrder" class="touch-btn flex-1 h-9 bg-gradient-to-r from-teal-700 to-emerald-800 hover:from-teal-800 hover:to-emerald-900 text-white font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md">
+          <span>Gunakan Foto & Input Pesanan Ini ➔</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 4. MODAL: STRUK TRANSAKSI SUKSES                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="modalSuccessReceipt" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-sm p-5 bg-white rounded-2xl shadow-2xl relative text-center">
+      <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+
+      <h3 class="brand-font font-black text-xl text-slate-900">Tercatat di Draft Simulasi!</h3>
+      <p id="receiptTimeLabel" class="text-xs text-slate-500 mt-0.5">Order #TK-001 &bull; 19 Sep 2026, 09:30</p>
+
+      <!-- Thermal Style Mini Slip -->
+      <div class="my-4 p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-left font-mono text-xs space-y-2">
+        <div class="flex justify-between text-slate-500 text-[0.7rem] pb-1 border-b border-slate-200">
+          <span id="receiptMethodBadge">METODE: QRISKAS</span>
+          <span id="receiptTofuCut">POTONG: 25 PCS</span>
+        </div>
+        <div id="receiptItemsContainer" class="space-y-1 text-slate-800">
+          <!-- Populated by JS -->
+        </div>
+        <div class="pt-2 border-t border-slate-300 flex justify-between font-bold text-sm text-slate-900">
+          <span>TOTAL BAYAR:</span>
+          <span id="receiptGrandTotal">Rp 25.000</span>
+        </div>
+        <div id="receiptQriskasRefRow" class="text-[0.65rem] text-blue-700 font-sans font-bold pt-1 hidden">
+          Ref QRISKas: <span id="receiptQriskasRefVal" class="font-mono"></span>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <button onclick="shareReceiptWhatsApp()" class="touch-btn w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.77.813 2.796.813 3.179 0 5.766-2.587 5.767-5.766.001-3.18-2.585-5.799-5.767-5.799zm9.969 5.768c0 5.507-4.478 9.986-9.986 9.986-1.745 0-3.38-.45-4.814-1.238l-5.2 1.363 1.388-5.074c-.87-1.488-1.374-3.226-1.374-5.037 0-5.508 4.478-9.987 9.986-9.987 5.508 0 9.986 4.479 9.986 9.987z"/></svg>
+          <span>Kirim Struk ke WhatsApp Pelanggan</span>
+        </button>
+
+        <button onclick="closeReceiptModal()" class="touch-btn w-full h-10 bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-xs rounded-xl">
+          Order Baru (Kasir Siap)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 5. MODAL: PERSETUJUAN & APPROVAL DRAFT POTONGAN TAHU               -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="modalApproval" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-2xl p-5 bg-white rounded-2xl shadow-2xl relative max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 shrink-0">
+        <div>
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-xs mb-1">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            Approval Staging Center
+          </div>
+          <h3 class="brand-font font-black text-slate-900 text-lg">Persetujuan Draft Pemotongan Tahu</h3>
+          <p class="text-xs text-slate-500">Kumpulan transaksi kasir sementara sebelum disetujui & dipotong resmi.</p>
+        </div>
+        <button onclick="closeApprovalModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- Comparison Metrics Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 shrink-0 text-xs">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+          <p class="text-[0.65rem] font-bold text-slate-500 uppercase">Stok Master Awal</p>
+          <p id="apprStokAwal" class="font-black text-sm text-slate-800 mt-0.5">242 pcs</p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
+          <p class="text-[0.65rem] font-bold text-amber-700 uppercase">Draft Potongan</p>
+          <p id="apprDraftTofu" class="font-black text-sm text-amber-900 mt-0.5">0 pcs</p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-teal-50 border border-teal-200">
+          <p class="text-[0.65rem] font-bold text-teal-700 uppercase">Estimasi Sisa</p>
+          <p id="apprSimulasiSisa" class="font-black text-sm text-teal-900 mt-0.5">242 pcs</p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-blue-50 border border-blue-200">
+          <p class="text-[0.65rem] font-bold text-blue-700 uppercase">Total Omzet Draft</p>
+          <p id="apprOmzetDraft" class="font-black text-sm text-blue-900 mt-0.5">Rp 0</p>
+        </div>
+      </div>
+
+      <!-- Pending Draft Orders Table -->
+      <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl mb-3">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0">
+            <tr>
+              <th class="p-2.5">Waktu / Order</th>
+              <th class="p-2.5">Menu Terjual</th>
+              <th class="p-2.5">Potong Tahu</th>
+              <th class="p-2.5">Metode</th>
+              <th class="p-2.5 text-right">Total (Rp)</th>
+              <th class="p-2.5 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="apprTableBody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="6" class="text-center py-6 text-slate-400">Belum ada transaksi draft yang terkumpul.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Footer with Approval Controls -->
+      <div class="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2">
+          <button onclick="shareApprovalRequestWhatsApp()" class="touch-btn h-9 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.77.813 2.796.813 3.179 0 5.766-2.587 5.767-5.766.001-3.18-2.585-5.799-5.767-5.799zm9.969 5.768c0 5.507-4.478 9.986-9.986 9.986-1.745 0-3.38-.45-4.814-1.238l-5.2 1.363 1.388-5.074c-.87-1.488-1.374-3.226-1.374-5.037 0-5.508 4.478-9.987 9.986-9.987 5.508 0 9.986 4.479 9.986 9.987z"/></svg>
+            <span>Minta Approval ke WA Bos</span>
+          </button>
+          <button onclick="resetSimulationDraft()" class="touch-btn h-9 px-3 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs rounded-xl border border-red-200">
+            Reset Draft
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="closeApprovalModal()" class="touch-btn h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">
+            Tutup
+          </button>
+          <button onclick="approveAllPendingDrafts()" class="touch-btn h-9 px-4 bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-xs rounded-xl shadow-md shadow-teal-900/20 flex items-center gap-1.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Setujui & Potong Stok Resmi</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 6. MODAL: RIWAYAT TRANSAKSI LENGKAP                                -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="modalRiwayat" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-3xl p-5 bg-white rounded-2xl shadow-2xl relative max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 shrink-0">
+        <div>
+          <h3 class="brand-font font-black text-slate-900 text-lg flex items-center gap-2">
+            <svg class="w-5 h-5 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+            Riwayat Seluruh Transaksi Kasir POS
+          </h3>
+          <p id="rekapDateLabel" class="text-xs text-slate-500">Sabtu, 19 September 2026</p>
+        </div>
+        <button onclick="closeRiwayatModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- Quick Metrics Strip -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 shrink-0">
+        <div class="p-2.5 rounded-xl bg-teal-50 border border-teal-200">
+          <p class="text-[0.65rem] font-black uppercase text-teal-700">Total Omzet</p>
+          <p id="rekapTotalOmzet" class="font-black text-base text-teal-950 mt-0.5">Rp 0</p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
+          <p class="text-[0.65rem] font-black uppercase text-amber-700">QRIS / QRISKas</p>
+          <p id="rekapTotalQris" class="font-black text-base text-amber-950 mt-0.5">Rp 0</p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
+          <p class="text-[0.65rem] font-black uppercase text-emerald-700">Kas Tunai</p>
+          <p id="rekapTotalCash" class="font-black text-base text-emerald-950 mt-0.5">Rp 0</p>
+        </div>
+        <div class="p-2.5 rounded-xl bg-blue-50 border border-blue-200">
+          <p class="text-[0.65rem] font-black uppercase text-blue-700">Tahu Terjual</p>
+          <p id="rekapTotalTofu" class="font-black text-base text-blue-950 mt-0.5">0 pcs</p>
+        </div>
+      </div>
+
+      <!-- Transaction Table (Scrollable) -->
+      <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0">
+            <tr>
+              <th class="p-2.5">Jam / Order</th>
+              <th class="p-2.5">Menu Terjual</th>
+              <th class="p-2.5">Tahu</th>
+              <th class="p-2.5">Metode</th>
+              <th class="p-2.5 text-right">Total (Rp)</th>
+              <th class="p-2.5 text-center">Status</th>
+              <th class="p-2.5 text-center">Bukti QRIS</th>
+            </tr>
+          </thead>
+          <tbody id="riwayatTableBody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="7" class="text-center py-6 text-slate-400">Belum ada transaksi di sesi ini.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="mt-4 pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <button onclick="exportRekapWhatsApp()" class="touch-btn h-9 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.77.813 2.796.813 3.179 0 5.766-2.587 5.767-5.766.001-3.18-2.585-5.799-5.767-5.799zm9.969 5.768c0 5.507-4.478 9.986-9.986 9.986-1.745 0-3.38-.45-4.814-1.238l-5.2 1.363 1.388-5.074c-.87-1.488-1.374-3.226-1.374-5.037 0-5.508 4.478-9.987 9.986-9.987 5.508 0 9.986 4.479 9.986 9.987z"/></svg>
+          <span>Kirim Rekap Shift ke WA Bos/Grup</span>
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button onclick="closeRiwayatModal()" class="touch-btn h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 7. MODAL: PENGATURAN MENU                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div id="modalMenuManager" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+    <div class="glass-card w-full max-w-lg p-5 bg-white rounded-2xl shadow-2xl relative max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 shrink-0">
+        <div>
+          <h3 class="brand-font font-black text-slate-900 text-base flex items-center gap-2">
+            <svg class="w-4 h-4 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            Kelola Menu Kasir & Porsi Tahu
+          </h3>
+          <p class="text-xs text-slate-500">Ubah harga atau jumlah pcs tahu mentah yang terpotong per porsi.</p>
+        </div>
+        <button onclick="closeMenuManagerModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- Add New Item Form -->
+      <form id="formAddMenu" onsubmit="handleSaveMenuItem(event)" class="space-y-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 mb-3 shrink-0 text-xs">
+        <h4 class="font-extrabold text-slate-800 text-[0.75rem] uppercase tracking-wider">Tambah / Edit Menu</h4>
+        <input type="hidden" id="menuFormId" value="" />
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Nama Menu</label>
+            <input type="text" id="menuFormName" placeholder="Contoh: Porsi Mini" required class="w-full h-8 px-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-teal-600" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Kategori</label>
+            <select id="menuFormCat" class="w-full h-8 px-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-teal-600">
+              <option value="paket">Porsi Tahu</option>
+              <option value="topping">Saus & Bumbu</option>
+              <option value="minuman">Minuman</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Harga (Rp)</label>
+            <input type="number" id="menuFormPrice" placeholder="10000" min="0" required class="w-full h-8 px-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-teal-600" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-600 mb-1">Potongan Tahu (Pcs)</label>
+            <input type="number" id="menuFormTofu" placeholder="10" min="0" required class="w-full h-8 px-2 bg-white border border-slate-300 rounded-lg outline-none focus:border-teal-600" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" onclick="resetMenuForm()" class="touch-btn h-8 px-3 bg-slate-200 text-slate-700 font-bold rounded-lg">Batal</button>
+          <button type="submit" class="touch-btn h-8 px-4 bg-teal-700 text-white font-bold rounded-lg">Simpan Menu</button>
+        </div>
+      </form>
+
+      <!-- Menu Items List (Scrollable) -->
+      <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
+        <div id="menuManagerList" class="divide-y divide-slate-100 text-xs">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
+        <button onclick="restoreDefaultMenu()" class="text-teal-700 font-bold hover:underline">Reset ke Menu Standar Gerai</button>
+        <button onclick="closeMenuManagerModal()" class="touch-btn h-8 px-4 bg-slate-100 text-slate-700 font-bold rounded-lg">Selesai</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="posToast" class="fixed bottom-4 right-4 z-50 pointer-events-none transition-all duration-300 opacity-0 transform translate-y-2">
+    <div id="posToastContent" class="bg-slate-900/90 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- 8. APPLICATION LOGIC JAVASCRIPT                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <script>
+    // ── 📦 ANTREAN FOTO QRIS PENDING (Batch Quick-Snap Jam Sibuk) ───────
+    let qrisPendingQueue = [];
+    let currentPendingQrisId = null;
+
+    function initQrisPendingQueue() {
+      try {
+        const saved = localStorage.getItem('DSTOCK_QRIS_PENDING_QUEUE');
+        if (saved) {
+          qrisPendingQueue = JSON.parse(saved);
+        }
+      } catch (e) {
+        qrisPendingQueue = [];
+      }
+      updateQrisPendingBadge();
+    }
+    initQrisPendingQueue();
+
+    function saveQrisPendingQueue() {
+      try {
+        localStorage.setItem('DSTOCK_QRIS_PENDING_QUEUE', JSON.stringify(qrisPendingQueue));
+      } catch (e) {}
+      updateQrisPendingBadge();
+    }
+
+    function updateQrisPendingBadge() {
+      const activePending = qrisPendingQueue.filter(q => q.status === 'PENDING').length;
+      const badgeHeader = document.getElementById('badgeQrisPendingCount');
+      const badgeCam = document.getElementById('cameraPendingBadge');
+      if (badgeHeader) badgeHeader.textContent = activePending;
+      if (badgeCam) badgeCam.textContent = activePending;
+    }
+
+    // Jepret dan simpan foto ke antrean pending tanpa menutup kamera
+    function snapPendingQrisPhoto() {
+      const video = document.getElementById('liveCameraVideo');
+      const canvas = document.getElementById('liveCameraCanvas');
+      if (!video || !canvas || !video.videoWidth) {
+        showToast('⚠️ Kamera belum siap menangkap gambar');
+        return;
+      }
+
+      triggerHapticFeedback();
+
+      // Visual flash feedback
+      const modal = document.getElementById('modalLiveCamera');
+      modal.classList.add('opacity-40');
+      setTimeout(() => modal.classList.remove('opacity-40'), 120);
+
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      let targetW = w;
+      let targetH = h;
+      const maxSide = 1000;
+
+      if (targetW > targetH && targetW > maxSide) {
+        targetH = Math.round((targetH * maxSide) / targetW);
+        targetW = maxSide;
+      } else if (targetH > maxSide) {
+        targetW = Math.round((targetW * maxSide) / targetH);
+        targetH = maxSide;
+      }
+
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, targetW, targetH);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const now = new Date();
+      const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                      String(now.getMinutes()).padStart(2, '0') + ':' + 
+                      String(now.getSeconds()).padStart(2, '0');
+
+      const newItem = {
+        id: 'QP_' + Date.now(),
+        photo: dataUrl,
+        capturedTime: timeStr,
+        capturedDate: now.toISOString().split('T')[0],
+        timestamp: Date.now(),
+        status: 'PENDING',
+        suggestedRef: 'QK-' + Math.floor(100000 + Math.random() * 900000)
+      };
+
+      qrisPendingQueue.unshift(newItem);
+      saveQrisPendingQueue();
+
+      showToast(`📸 Foto QRIS (#${qrisPendingQueue.length} - Jam ${timeStr}) masuk Antrean Pending!`);
+    }
+
+    function openQrisPendingModal() {
+      renderQrisPendingList();
+      const modal = document.getElementById('modalQrisPending');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeQrisPendingModal() {
+      const modal = document.getElementById('modalQrisPending');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function renderQrisPendingList() {
+      const container = document.getElementById('qrisPendingCardsList');
+      const emptyState = document.getElementById('qrisPendingEmptyState');
+      if (!container || !emptyState) return;
+
+      const activeItems = qrisPendingQueue.filter(q => q.status === 'PENDING');
+
+      if (activeItems.length === 0) {
+        emptyState.classList.remove('hidden');
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.classList.remove('hidden');
+      container.innerHTML = '';
+
+      activeItems.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2.5 transition hover:border-amber-400';
+
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            <!-- Thumbnail preview with zoom icon -->
+            <div class="relative w-14 h-14 rounded-lg bg-black overflow-hidden shrink-0 cursor-pointer border border-slate-300 group" onclick="openQrisDetailZoom('${item.id}')">
+              <img src="${item.photo}" alt="QRIS Capture" class="w-full h-full object-cover group-hover:scale-105 transition" />
+              <span class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white text-xs font-bold">🔍</span>
+            </div>
+
+            <!-- Meta info: Jam & Ref -->
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-black text-slate-900 text-xs sm:text-sm">Jam ${item.capturedTime}</span>
+                <span class="bg-amber-100 text-amber-950 font-black text-[0.62rem] px-1.5 py-0.2 rounded-md">Pending</span>
+              </div>
+              <p class="text-[0.68rem] text-slate-500 font-mono mt-0.5 truncate">Ref: ${item.suggestedRef}</p>
+              <button type="button" onclick="openQrisDetailZoom('${item.id}')" class="text-[0.68rem] text-teal-700 hover:underline font-bold mt-0.5 inline-block">
+                🔍 Periksa Foto Jelas
+              </button>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="usePendingQrisForOrder('${item.id}')" class="touch-btn h-9 px-3 bg-gradient-to-r from-teal-700 to-emerald-800 hover:from-teal-800 hover:to-emerald-900 text-white font-extrabold text-xs rounded-xl flex items-center gap-1 shadow-sm">
+              <span>Proses</span>
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <button onclick="deletePendingQris('${item.id}')" class="touch-btn w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-sm" title="Hapus foto ini">
+              🗑️
+            </button>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // Modal Zoom detail foto QRIS agar kasir yakin melihat nominal & jam pembayaran
+    function openQrisDetailZoom(itemId) {
+      const item = qrisPendingQueue.find(q => q.id === itemId);
+      if (!item) return;
+
+      document.getElementById('zoomQrisImg').src = item.photo;
+      document.getElementById('zoomQrisMeta').textContent = `Jam Capture: ${item.capturedTime} • Ref: ${item.suggestedRef}`;
+      
+      const btnUse = document.getElementById('btnZoomUseOrder');
+      btnUse.onclick = () => {
+        closeQrisDetailZoom();
+        usePendingQrisForOrder(item.id);
+      };
+
+      const modal = document.getElementById('modalQrisDetailZoom');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeQrisDetailZoom() {
+      const modal = document.getElementById('modalQrisDetailZoom');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Tautkan foto QRIS pending ke pesanan kasir aktif
+    function usePendingQrisForOrder(itemId) {
+      const item = qrisPendingQueue.find(q => q.id === itemId);
+      if (!item) return;
+
+      currentPendingQrisId = item.id;
+      attachedQrisPhoto = item.photo;
+      showAttachedQrisBanner(item.photo);
+      setPaymentMethod('qris');
+
+      // Tautkan ref dari antrean ke input QRISKas
+      const refInput = document.getElementById('qriskasRefInput');
+      if (refInput) {
+        refInput.value = item.suggestedRef;
+      }
+
+      closeQrisDetailZoom();
+      closeQrisPendingModal();
+
+      showToast(`📸 Foto QRIS (Jam ${item.capturedTime}) terpilih! Silakan input menu pembeli.`);
+    }
+
+    function deletePendingQris(itemId) {
+      if (!confirm('Hapus foto bukti QRIS ini dari antrean pending?')) return;
+      qrisPendingQueue = qrisPendingQueue.filter(q => q.id !== itemId);
+      saveQrisPendingQueue();
+      renderQrisPendingList();
+      showToast('Foto QRIS dihapus dari antrean.');
+    }
+
+    // ── 📱 PWA 1-Tap Standalone Install Logic (No Android Studio) ───────
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('btnPwaInstall');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    async function installPwaApp() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showToast('🎉 Aplikasi DStock Kasir berhasil dipasang di HP!');
+        }
+        deferredPrompt = null;
+        const btn = document.getElementById('btnPwaInstall');
+        if (btn) btn.classList.add('hidden');
+      } else {
+        alert('Cara pasang instan aplikasi kasir di HP Android (0 MB Tanpa Android Studio):\n\n1. Buka Chrome di HP: https://dstock.tahunyakrispiya.my.id/pos\n2. Tap ikon menu titik tiga (⋮) di kanan atas\n3. Pilih "Tambahkan ke Layar Utama" / "Instal Aplikasi"\n\nAplikasi akan langsung terpasang di menu HP, berjalan fullscreen, dan kamera belakang siap digunakan!');
+      }
+    }
+
+    // ── Default Menu Setup ─────────────────────────────────────────────
+    const DEFAULT_MENU_ITEMS = [
+      { id: 'm1', name: 'Porsi Mini (10 pcs)', cat: 'paket', price: 10000, tofuPcs: 10, badge: '10 Tahu' },
+      { id: 'm2', name: 'Porsi Reguler (15 pcs)', cat: 'paket', price: 15000, tofuPcs: 15, badge: '15 Tahu' },
+      { id: 'm3', name: 'Porsi Jumbo (25 pcs)', cat: 'paket', price: 25000, tofuPcs: 25, badge: '25 Tahu' },
+      { id: 'm4', name: 'Family Box (40 pcs)', cat: 'paket', price: 38000, tofuPcs: 40, badge: '40 Tahu' },
+      { id: 'm5', name: 'Bumbu Tabur Balado Pedas', cat: 'topping', price: 2000, tofuPcs: 0, badge: 'Topping' },
+      { id: 'm6', name: 'Saus Kecap Cabe Rawit', cat: 'topping', price: 2000, tofuPcs: 0, badge: 'Topping' },
+      { id: 'm7', name: 'Ekstra Bumbu Jagung Manis', cat: 'topping', price: 2000, tofuPcs: 0, badge: 'Topping' },
+      { id: 'm8', name: 'Air Mineral Dingin 600ml', cat: 'minuman', price: 3000, tofuPcs: 0, badge: 'Minuman' },
+      { id: 'm9', name: 'Teh Manis Dingin / Botol', cat: 'minuman', price: 4000, tofuPcs: 0, badge: 'Minuman' }
+    ];
+
+    // ── Global State ──────────────────────────────────────────────────
+    let menuItems = [];
+    let cart = []; // Array of { id, item, qty }
+    let paymentMethod = 'qris'; // 'qris' or 'cash'
+    let attachedQrisPhoto = null; // Base64 dataURL
+    let allTransactions = []; // Holds all transactions (pending_approval + approved)
+    let stockData = {
+      papanAwal: 2,
+      tahuTambahan: 0,
+      totalAwalTahu: 242,
+      sisaTahuResmi: 242
+    };
+    let currentLastCompletedOrder = null;
+
+    // ── Initialization ────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSavedMenu();
+      loadSavedTransactions();
+      fetchStockInfo();
+      renderMenuCards();
+      renderCart();
+      updateOrderNumber();
+    });
+
+    // ── Storage Helpers ───────────────────────────────────────────────
+    function loadSavedMenu() {
+      const saved = localStorage.getItem('dstock_pos_menu');
+      if (saved) {
+        try { menuItems = JSON.parse(saved); } catch { menuItems = [...DEFAULT_MENU_ITEMS]; }
+      } else {
+        menuItems = [...DEFAULT_MENU_ITEMS];
+        localStorage.setItem('dstock_pos_menu', JSON.stringify(menuItems));
+      }
+    }
+
+    function saveMenuToStorage() {
+      localStorage.setItem('dstock_pos_menu', JSON.stringify(menuItems));
+      renderMenuCards();
+    }
+
+    function loadSavedTransactions() {
+      const todayKey = 'dstock_pos_tx_' + dayjs().format('YYYY-MM-DD');
+      const saved = localStorage.getItem(todayKey);
+      if (saved) {
+        try { allTransactions = JSON.parse(saved); } catch { allTransactions = []; }
+      } else {
+        allTransactions = [];
+      }
+      updateStockIndicators();
+      updateRiwayatBadge();
+    }
+
+    function saveTransactionsToStorage() {
+      const todayKey = 'dstock_pos_tx_' + dayjs().format('YYYY-MM-DD');
+      localStorage.setItem(todayKey, JSON.stringify(allTransactions));
+      updateStockIndicators();
+      updateRiwayatBadge();
+    }
+
+    // ── Fetch Initial Master Stock From DStock ────────────────────────
+    async function fetchStockInfo() {
+      try {
+        const res = await fetch('/api/data', { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          const g = json.gorengan || {};
+          const papanAwal = parseFloat(g['Tahu Mentah (Papan)']) || 2;
+          const tambahan = parseFloat(g['Tahu Tambahan (Pcs)']) || 0;
+          const totalAwal = (papanAwal * 121) + tambahan;
+          
+          stockData.papanAwal = papanAwal;
+          stockData.tahuTambahan = tambahan;
+          stockData.totalAwalTahu = totalAwal;
+          stockData.sisaTahuResmi = parseFloat(g['Sisa Tahu Hari Ini (Pcs)']) || totalAwal;
+
+          updateStockIndicators();
+        }
+      } catch (e) {
+        console.warn('POS stock fallback error:', e);
+      }
+    }
+
+    function updateStockIndicators() {
+      // Update mobile pill if element exists
+      const mobPill = document.getElementById('mobileStockPill');
+      if (mobPill) {
+        mobPill.textContent = (stockData.sisaTahuResmi || 242) + ' pcs';
+      }
+
+      const approvedTx = allTransactions.filter(t => t.status === 'APPROVED');
+      const pendingDrafts = allTransactions.filter(t => t.status !== 'APPROVED');
+
+      const totalCutApproved = approvedTx.reduce((acc, t) => acc + (t.totalTofuCut || 0), 0);
+      const totalCutDraft = pendingDrafts.reduce((acc, t) => acc + (t.totalTofuCut || 0), 0);
+      
+      const sisaResmi = Math.max(0, stockData.totalAwalTahu - totalCutApproved);
+      const simulasiSisa = Math.max(0, sisaResmi - totalCutDraft);
+
+      // Header Master Bar
+      document.getElementById('headerTotalAwal').textContent = `${stockData.totalAwalTahu} pcs (${stockData.papanAwal} Papan)`;
+      document.getElementById('headerTerpotongResmi').textContent = `${totalCutApproved} pcs`;
+      
+      const sisaEl = document.getElementById('headerSisaTahu');
+      let dotCls = 'bg-emerald-500';
+      let textCls = 'text-emerald-700';
+      if (sisaResmi > 121) {
+        dotCls = 'bg-red-500';
+        textCls = 'text-red-700';
+      } else if (sisaResmi > 50) {
+        dotCls = 'bg-amber-500';
+        textCls = 'text-amber-700';
+      }
+      sisaEl.className = `font-black inline-flex items-center gap-1.5 ${textCls}`;
+      sisaEl.innerHTML = `<span class="w-2 h-2 rounded-full ${dotCls}"></span> ${sisaResmi} pcs`;
+
+      // Draft Simulation Strip (Desktop & Mobile)
+      document.getElementById('stripDraftTofu').textContent = `${totalCutDraft} pcs (${pendingDrafts.length} order)`;
+      document.getElementById('stripSimulasiSisa').textContent = `${simulasiSisa} pcs`;
+      document.getElementById('badgePendingApprovalCount').textContent = pendingDrafts.length;
+
+      const mobDraftBanner = document.getElementById('mobileDraftBanner');
+      const mobDraftText = document.getElementById('mobileDraftText');
+      if (mobDraftBanner) {
+        if (pendingDrafts.length > 0) {
+          mobDraftBanner.classList.remove('hidden');
+          if (mobDraftText) {
+            mobDraftText.textContent = `${pendingDrafts.length} Order Draft (${totalCutDraft} pcs tahu)`;
+          }
+        } else {
+          mobDraftBanner.classList.add('hidden');
+        }
+      }
+
+      // Approval Modal Counters
+      document.getElementById('apprStokAwal').textContent = `${stockData.totalAwalTahu} pcs`;
+      document.getElementById('apprDraftTofu').textContent = `${totalCutDraft} pcs`;
+      document.getElementById('apprSimulasiSisa').textContent = `${simulasiSisa} pcs`;
+      const draftOmzet = pendingDrafts.reduce((acc, t) => acc + t.totalPrice, 0);
+      document.getElementById('apprOmzetDraft').textContent = `Rp ${draftOmzet.toLocaleString('id-ID')}`;
+    }
+
+    function updateRiwayatBadge() {
+      document.getElementById('badgeCountTransaksi').textContent = allTransactions.length;
+    }
+
+    function updateOrderNumber() {
+      const nextNum = String(allTransactions.length + 1).padStart(3, '0');
+      document.getElementById('orderNumberLabel').textContent = `Order #TK-${nextNum}`;
+    }
+
+    // ── Menu Filtering & Search ───────────────────────────────────────
+    let currentCategory = 'all';
+    let searchQuery = '';
+
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        if (btn.dataset.cat === cat) {
+          btn.className = 'cat-btn active h-8 px-3 rounded-xl text-xs font-bold transition bg-teal-800 text-white flex items-center gap-1.5 shadow-xs';
+        } else {
+          btn.className = 'cat-btn h-8 px-3 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center gap-1.5';
+        }
+      });
+      renderMenuCards();
+    }
+
+    function filterMenuSearch(query) {
+      searchQuery = (query || '').toLowerCase().trim();
+      renderMenuCards();
+    }
+
+    function renderMenuCards() {
+      const container = document.getElementById('menuCardsGrid');
+      container.innerHTML = '';
+
+      const filtered = menuItems.filter(item => {
+        const matchesCat = currentCategory === 'all' || item.cat === currentCategory;
+        const matchesSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery);
+        return matchesCat && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-12 text-center text-slate-400">
+            <p class="font-bold text-sm">Tidak ada menu yang cocok.</p>
+            <p class="text-xs mt-1">Gunakan kata kunci lain atau tambah menu baru.</p>
+          </div>`;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const inCartItem = cart.find(c => c.id === item.id);
+        const inCartQty = inCartItem ? inCartItem.qty : 0;
+
+        // Simple cashier category icon
+        let catIcon = '📦';
+        if (item.cat === 'paket') catIcon = '🥟';
+        else if (item.cat === 'topping') catIcon = '🧂';
+        else if (item.cat === 'minuman') catIcon = '🥤';
+
+        const card = document.createElement('div');
+        card.className = `touch-btn bg-white rounded-2xl border ${inCartQty > 0 ? 'border-teal-600 bg-teal-50/15 ring-2 ring-teal-500/20 shadow-md' : 'border-slate-200/90'} hover:border-teal-600 p-3 sm:p-3.5 flex flex-col justify-between transition-all duration-150 shadow-xs hover:shadow-md cursor-pointer relative overflow-hidden group`;
+        
+        // Card click adds item if not in cart yet, or increments if tapped outside buttons
+        card.onclick = (e) => {
+          addToCart(item.id);
+        };
+
+        const tofuBadge = item.tofuPcs > 0 
+          ? `<span class="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-900 text-[0.62rem] sm:text-[0.65rem] font-black px-1.5 py-0.5 rounded-md">
+               ⚡ ${item.tofuPcs} pcs
+             </span>`
+          : `<span class="inline-flex items-center bg-slate-100 text-slate-500 text-[0.62rem] sm:text-[0.65rem] font-bold px-1.5 py-0.5 rounded-md">Non-Tahu</span>`;
+
+        // Stepper: Kurangi di Kiri (-), Tambah di Kanan (+)
+        const actionControl = inCartQty > 0
+          ? `<div class="flex items-center gap-0.5 bg-teal-100/90 border border-teal-300 rounded-xl p-0.5 shadow-sm shrink-0" onclick="event.stopPropagation()">
+               <button onclick="updateCartQty('${item.id}', -1)" class="w-7 h-7 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 flex items-center justify-center font-black text-base active:scale-85 transition" title="Kurangi 1">
+                 −
+               </button>
+               <span class="w-6 text-center font-black text-xs text-teal-950">${inCartQty}</span>
+               <button onclick="updateCartQty('${item.id}', 1)" class="w-7 h-7 rounded-lg bg-teal-700 hover:bg-teal-800 text-white flex items-center justify-center font-black text-base active:scale-85 transition" title="Tambah 1">
+                 +
+               </button>
+             </div>`
+          : `<span class="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 border border-teal-200/60 flex items-center justify-center font-black text-base group-hover:bg-teal-700 group-hover:text-white transition active:scale-90 shrink-0">
+               +
+             </span>`;
+
+        // Quick Split Bar for Easy Touch (Kiri Kurang, Kanan Tambah) when in cart
+        const quickSplitBar = inCartQty > 0
+          ? `<div class="mt-2 pt-1.5 border-t border-teal-200/60 flex items-center justify-between text-[0.68rem] font-extrabold" onclick="event.stopPropagation()">
+               <button onclick="updateCartQty('${item.id}', -1)" class="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition active:scale-95 flex items-center gap-1">
+                 <span>− Kurang</span>
+               </button>
+               <span class="text-teal-800 text-[0.65rem] font-black">${inCartQty} porsi</span>
+               <button onclick="updateCartQty('${item.id}', 1)" class="px-2 py-0.5 rounded-md bg-teal-700 hover:bg-teal-800 text-white transition active:scale-95 flex items-center gap-1">
+                 <span>+ Tambah</span>
+               </button>
+             </div>`
+          : '';
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-1 mb-1.5">
+              <div class="flex items-center gap-1 flex-wrap">
+                <span class="text-sm shrink-0">${catIcon}</span>
+                ${tofuBadge}
+              </div>
+              ${actionControl}
+            </div>
+            <h3 class="font-extrabold text-slate-900 text-xs sm:text-sm leading-snug group-hover:text-teal-800 transition line-clamp-2 mt-1">
+              ${item.name}
+            </h3>
+          </div>
+          <div>
+            <div class="mt-2 pt-2 border-t border-slate-100 flex items-baseline justify-between">
+              <span class="text-[0.62rem] text-slate-400 font-bold uppercase">Harga</span>
+              <span class="brand-font font-black text-sm sm:text-base text-teal-900">
+                Rp ${item.price.toLocaleString('id-ID')}
+              </span>
+            </div>
+            ${quickSplitBar}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // ── ⚡ NATIVE ANDROID HARDWARE CAMERA BRIDGE CALLBACK ────────────
+    window.onHardwareCameraCapture = function(dataUrl) {
+      if (!dataUrl) return;
+
+      const now = dayjs();
+      const capturedTime = now.format('HH:mm:ss');
+      const dateStr = now.format('YYYY-MM-DD');
+      const item = {
+        id: 'QRIS-' + Date.now(),
+        date: dateStr,
+        capturedTime: capturedTime,
+        photo: dataUrl,
+        suggestedRef: 'QKP-' + now.format('HHmmss'),
+        status: 'PENDING',
+        notes: 'Hasil Kamera Belakang Hardware Native'
+      };
+
+      qrisPendingQueue.unshift(item);
+      saveQrisPendingQueue();
+      updateQrisPendingBadge();
+
+      // Lampirkan juga ke pesanan kasir aktif
+      attachedQrisPhoto = dataUrl;
+      showAttachedQrisBanner(dataUrl);
+      setPaymentMethod('qris');
+      const refInput = document.getElementById('qriskasRefInput');
+      if (refInput && !refInput.value) {
+        refInput.value = item.suggestedRef;
+      }
+
+      if (navigator.vibrate) {
+        try { navigator.vibrate([40, 40, 40]); } catch(e){}
+      }
+
+      showToast(`📸 Kamera Hardware: Foto QRIS tercatat (Jam ${capturedTime})!`);
+    };
+
+    // ── ⚡ QUICK QRIS LIVE HARDWARE CAMERA & SNAP HANDLING ─────────────
+    let liveCameraStream = null;
+    let currentCameraFacing = 'environment'; // Default kamera belakang hardware
+    let isTorchOn = false;
+
+    async function openLiveCamera() {
+      // Prioritas 0: Native Hardware Rear Camera via AndroidBridge
+      if (window.AndroidBridge && typeof window.AndroidBridge.openHardwareCamera === 'function') {
+        window.AndroidBridge.openHardwareCamera();
+        return;
+      }
+
+      const modal = document.getElementById('modalLiveCamera');
+      const video = document.getElementById('liveCameraVideo');
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        triggerNativeFileInput();
+        return;
+      }
+
+      try {
+        stopCameraTracks();
+        isTorchOn = false;
+        modal.classList.remove('hidden');
+
+        let stream = null;
+        // Prioritas 1: Kamera belakang perangkat fisik (exact environment)
+        if (currentCameraFacing === 'environment') {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: { exact: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              },
+              audio: false
+            });
+          } catch (e1) {
+            console.log('Exact environment not available, using ideal environment fallback');
+          }
+        }
+
+        // Prioritas 2: Ideal facing mode
+        if (!stream) {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: currentCameraFacing },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
+            audio: false
+          });
+        }
+
+        liveCameraStream = stream;
+        video.srcObject = liveCameraStream;
+        await video.play();
+
+        checkTorchSupport();
+      } catch (err) {
+        console.warn('Live camera access error, falling back to file picker:', err);
+        closeLiveCamera();
+        triggerNativeFileInput();
+      }
+    }
+
+    function checkTorchSupport() {
+      const btnTorch = document.getElementById('btnToggleTorch');
+      if (!btnTorch) return;
+      if (!liveCameraStream) {
+        btnTorch.classList.add('hidden');
+        return;
+      }
+      const track = liveCameraStream.getVideoTracks()[0];
+      const capabilities = track && track.getCapabilities ? track.getCapabilities() : {};
+      if (capabilities && capabilities.torch) {
+        btnTorch.classList.remove('hidden');
+      } else {
+        btnTorch.classList.add('hidden');
+      }
+    }
+
+    async function toggleLiveTorch() {
+      if (!liveCameraStream) return;
+      const track = liveCameraStream.getVideoTracks()[0];
+      if (!track) return;
+      try {
+        isTorchOn = !isTorchOn;
+        await track.applyConstraints({
+          advanced: [{ torch: isTorchOn }]
+        });
+        const btnTorch = document.getElementById('btnToggleTorch');
+        if (btnTorch) {
+          btnTorch.classList.toggle('text-amber-400', isTorchOn);
+          btnTorch.classList.toggle('bg-amber-400/20', isTorchOn);
+        }
+        showToast(isTorchOn ? '💡 Senter Aktif' : '💡 Senter Mati');
+      } catch (e) {
+        console.warn('Failed to toggle torch:', e);
+      }
+    }
+
+    function stopCameraTracks() {
+      if (liveCameraStream) {
+        liveCameraStream.getTracks().forEach(t => t.stop());
+        liveCameraStream = null;
+      }
+      isTorchOn = false;
+      const btnTorch = document.getElementById('btnToggleTorch');
+      if (btnTorch) {
+        btnTorch.classList.add('hidden');
+        btnTorch.classList.remove('text-amber-400', 'bg-amber-400/20');
+      }
+    }
+
+    function closeLiveCamera() {
+      stopCameraTracks();
+      const modal = document.getElementById('modalLiveCamera');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function flipLiveCamera() {
+      currentCameraFacing = currentCameraFacing === 'environment' ? 'user' : 'environment';
+      await openLiveCamera();
+    }
+
+    function takeLivePhoto() {
+      const video = document.getElementById('liveCameraVideo');
+      const canvas = document.getElementById('liveCameraCanvas');
+      if (!video || !canvas || !video.videoWidth) return;
+
+      if (navigator.vibrate) {
+        try { navigator.vibrate(35); } catch(e){}
+      }
+
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      let targetW = w;
+      let targetH = h;
+      const maxSide = 1000;
+
+      if (targetW > targetH && targetW > maxSide) {
+        targetH = Math.round((targetH * maxSide) / targetW);
+        targetW = maxSide;
+      } else if (targetH > maxSide) {
+        targetW = Math.round((targetW * maxSide) / targetH);
+        targetH = maxSide;
+      }
+
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, targetW, targetH);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      attachedQrisPhoto = dataUrl;
+
+      closeLiveCamera();
+      showAttachedQrisBanner(dataUrl);
+      setPaymentMethod('qris');
+      generateQriskasRef();
+      showToast('📸 Foto Bukti QRIS Terlampir! Silakan pilih menu.');
+    }
+
+    function triggerNativeFileInput() {
+      if (window.AndroidBridge && typeof window.AndroidBridge.openHardwareCamera === 'function') {
+        window.AndroidBridge.openHardwareCamera();
+        return;
+      }
+      closeLiveCamera();
+      document.getElementById('qrisCameraInput').click();
+    }
+
+    function triggerQrisSnap() {
+      if (window.AndroidBridge && typeof window.AndroidBridge.openHardwareCamera === 'function') {
+        window.AndroidBridge.openHardwareCamera();
+        return;
+      }
+      openLiveCamera();
+    }
+
+    function handleQrisPhotoCaptured(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxSide = 1000;
+
+          if (width > height && width > maxSide) {
+            height = Math.round((height * maxSide) / width);
+            width = maxSide;
+          } else if (height > maxSide) {
+            width = Math.round((width * maxSide) / height);
+            height = maxSide;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          attachedQrisPhoto = canvas.toDataURL('image/jpeg', 0.82);
+          showAttachedQrisBanner(attachedQrisPhoto);
+          setPaymentMethod('qris');
+          generateQriskasRef(); // Otomatis buat ref jika belum ada
+          showToast('📸 Foto Bukti QRIS Terlampir! Silakan pilih menu.');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    }
+
+    function showAttachedQrisBanner(dataUrl) {
+      document.getElementById('qrisAttachedThumb').src = dataUrl;
+      document.getElementById('qrisAttachedBanner').classList.remove('hidden');
+      document.getElementById('btnResetQrisPhoto').classList.remove('hidden');
+    }
+
+    function clearQrisPhoto() {
+      attachedQrisPhoto = null;
+      document.getElementById('qrisAttachedThumb').src = '';
+      document.getElementById('qrisAttachedBanner').classList.add('hidden');
+      document.getElementById('btnResetQrisPhoto').classList.add('hidden');
+      showToast('Foto bukti QRIS dilepas.');
+    }
+
+    function viewCurrentQrisPhoto() {
+      if (!attachedQrisPhoto) return;
+      document.getElementById('modalQrisImg').src = attachedQrisPhoto;
+      document.getElementById('modalQrisPreview').classList.remove('hidden');
+    }
+
+    function closeQrisPreviewModal() {
+      document.getElementById('modalQrisPreview').classList.add('hidden');
+    }
+
+    function generateQriskasRef() {
+      const rnd = Math.floor(100000 + Math.random() * 900000);
+      document.getElementById('qriskasRefInput').value = `QK-${rnd}`;
+    }
+
+    // ── Cart & Item Deductions ─────────────────────────────────────────
+    function triggerHapticFeedback() {
+      if (window.navigator && window.navigator.vibrate) {
+        try { window.navigator.vibrate(25); } catch(e){}
+      }
+      if (window.ReactNativeWebView) {
+        try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'HAPTIC_CLICK' })); } catch(e){}
+      }
+    }
+
+    function addToCart(itemId) {
+      triggerHapticFeedback();
+
+      const item = menuItems.find(m => m.id === itemId);
+      if (!item) return;
+
+      const existing = cart.find(c => c.id === itemId);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ id: itemId, item: item, qty: 1 });
+      }
+
+      renderCart();
+      renderMenuCards(); // update in-cart badge on menu card
+      showToast(`+1 ${item.name}`);
+    }
+
+    function updateCartQty(itemId, delta) {
+      triggerHapticFeedback();
+
+      const existing = cart.find(c => c.id === itemId);
+      if (!existing) return;
+
+      existing.qty += delta;
+      if (existing.qty <= 0) {
+        cart = cart.filter(c => c.id !== itemId);
+      }
+
+      renderCart();
+      renderMenuCards();
+    }
+
+    function clearCart() {
+      if (cart.length === 0) return;
+      cart = [];
+      renderCart();
+      renderMenuCards();
+      showToast('Keranjang dikosongkan.');
+    }
+
+    function renderCart() {
+      const itemsContainer = document.getElementById('cartItemList');
+      const emptyState = document.getElementById('cartEmptyState');
+      const mobileFloatingBar = document.getElementById('mobileFloatingCartBar');
+      const totalItemCount = cart.reduce((acc, c) => acc + c.qty, 0);
+
+      if (cart.length === 0) {
+        if (emptyState) emptyState.classList.remove('hidden');
+        if (itemsContainer) {
+          itemsContainer.classList.add('hidden');
+          itemsContainer.innerHTML = '';
+        }
+        if (mobileFloatingBar) mobileFloatingBar.classList.add('hidden');
+
+        document.getElementById('cartTotalPrice').textContent = 'Rp 0';
+        document.getElementById('cartTofuTotal').textContent = '0 pcs';
+        document.getElementById('cartPapanEstimate').textContent = '(0.0 papan)';
+        calculateChange();
+        return;
+      }
+
+      if (emptyState) emptyState.classList.add('hidden');
+      if (itemsContainer) {
+        itemsContainer.classList.remove('hidden');
+        itemsContainer.innerHTML = '';
+      }
+      if (mobileFloatingBar) {
+        mobileFloatingBar.classList.remove('hidden');
+      }
+
+      let totalPrice = 0;
+      let totalTofuPcs = 0;
+
+      cart.forEach(({ item, qty }) => {
+        const subtotal = item.price * qty;
+        const tofuSubtotal = item.tofuPcs * qty;
+        totalPrice += subtotal;
+        totalTofuPcs += tofuSubtotal;
+
+        const row = document.createElement('div');
+        row.className = 'p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2 text-xs';
+
+        row.innerHTML = `
+          <div class="min-w-0 flex-1">
+            <h4 class="font-extrabold text-slate-800 truncate">${item.name}</h4>
+            <div class="flex items-center gap-2 mt-0.5 text-[0.7rem] text-slate-500">
+              <span>@ Rp ${item.price.toLocaleString('id-ID')}</span>
+              ${item.tofuPcs > 0 ? `<span class="text-amber-700 font-bold">(${tofuSubtotal} pcs tahu)</span>` : ''}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <div class="flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden">
+              <button onclick="updateCartQty('${item.id}', -1)" class="w-7 h-7 flex items-center justify-center font-black text-slate-600 hover:bg-slate-100 touch-btn">-</button>
+              <span class="w-8 text-center font-black text-slate-800">${qty}</span>
+              <button onclick="updateCartQty('${item.id}', 1)" class="w-7 h-7 flex items-center justify-center font-black text-teal-700 hover:bg-slate-100 touch-btn">+</button>
+            </div>
+            <div class="w-16 text-right font-black text-teal-950">
+              Rp ${subtotal.toLocaleString('id-ID')}
+            </div>
+          </div>
+        `;
+        if (itemsContainer) itemsContainer.appendChild(row);
+      });
+
+      document.getElementById('cartTotalPrice').textContent = `Rp ${totalPrice.toLocaleString('id-ID')}`;
+      document.getElementById('cartTofuTotal').textContent = `${totalTofuPcs} pcs`;
+      const papanEst = (totalTofuPcs / 121).toFixed(1);
+      document.getElementById('cartPapanEstimate').textContent = `(${papanEst} papan)`;
+
+      // Update Mobile Floating Cart Bar
+      const mobileCountEl = document.getElementById('mobileCartItemCount');
+      const mobileTotalEl = document.getElementById('mobileCartTotal');
+      const mobileTofuEl = document.getElementById('mobileCartTofu');
+      if (mobileCountEl) mobileCountEl.textContent = totalItemCount;
+      if (mobileTotalEl) mobileTotalEl.textContent = `Rp ${totalPrice.toLocaleString('id-ID')}`;
+      if (mobileTofuEl) mobileTofuEl.textContent = `Potong: ${totalTofuPcs} pcs tahu`;
+
+      calculateChange();
+    }
+
+    // ── Mobile Cart Drawer Toggle ──────────────────────────────────────
+    function toggleMobileCart(open) {
+      const drawer = document.getElementById('cartPanelDrawer');
+      const backdrop = document.getElementById('mobileCartBackdrop');
+      if (!drawer) return;
+      if (open) {
+        drawer.classList.add('open');
+        if (backdrop) backdrop.classList.add('open');
+      } else {
+        drawer.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('open');
+      }
+    }
+
+    // ── Payment Methods & Cash Calculations ───────────────────────────
+    function setPaymentMethod(method) {
+      paymentMethod = method;
+      const qrisBtn = document.getElementById('payModeQrisBtn');
+      const cashBtn = document.getElementById('payModeCashBtn');
+      const cashSection = document.getElementById('cashInputSection');
+      const qriskasSection = document.getElementById('qriskasDetailSection');
+
+      if (method === 'qris') {
+        qrisBtn.className = 'touch-btn h-9 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition bg-white text-teal-900 shadow-sm';
+        cashBtn.className = 'touch-btn h-9 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition text-slate-600 hover:text-slate-900';
+        cashSection.classList.add('hidden');
+        qriskasSection.classList.remove('hidden');
+        document.getElementById('btnSubmitOrderText').textContent = 'Simpan QRIS (Draft Simulasi)';
+      } else {
+        cashBtn.className = 'touch-btn h-9 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition bg-white text-teal-900 shadow-sm';
+        qrisBtn.className = 'touch-btn h-9 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition text-slate-600 hover:text-slate-900';
+        cashSection.classList.remove('hidden');
+        qriskasSection.classList.add('hidden');
+        document.getElementById('btnSubmitOrderText').textContent = 'Simpan Tunai (Draft Simulasi)';
+        calculateChange();
+      }
+    }
+
+    function calculateChange() {
+      const totalBill = getCartTotal();
+      const receivedInput = document.getElementById('cashReceivedInput');
+      const received = parseFloat(receivedInput.value) || 0;
+      const change = received - totalBill;
+
+      const changeLabel = document.getElementById('cashChangeLabel');
+      if (received <= 0) {
+        changeLabel.textContent = 'Rp 0';
+        changeLabel.className = 'font-black text-sm text-slate-500';
+      } else if (change >= 0) {
+        changeLabel.textContent = `Rp ${change.toLocaleString('id-ID')}`;
+        changeLabel.className = 'font-black text-sm text-emerald-800';
+      } else {
+        changeLabel.textContent = `Kurang Rp ${Math.abs(change).toLocaleString('id-ID')}`;
+        changeLabel.className = 'font-black text-sm text-red-600';
+      }
+    }
+
+    function setQuickCash(amount) {
+      const total = getCartTotal();
+      const input = document.getElementById('cashReceivedInput');
+      if (amount === 'exact') {
+        input.value = total;
+      } else {
+        input.value = amount;
+      }
+      calculateChange();
+    }
+
+    function getCartTotal() {
+      return cart.reduce((acc, c) => acc + (c.item.price * c.qty), 0);
+    }
+
+    function getCartTofuTotal() {
+      return cart.reduce((acc, c) => acc + (c.item.tofuPcs * c.qty), 0);
+    }
+
+    // ── Complete & Record Transaction into Draft Stage ─────────────────
+    function completeTransaction() {
+      if (cart.length === 0) {
+        showToast('⚠️ Keranjang masih kosong! Pilih menu terlebih dahulu.');
+        return;
+      }
+
+      const totalBill = getCartTotal();
+      const totalTofu = getCartTofuTotal();
+      const now = dayjs();
+      const orderId = `TK-${dayjs().format('HHmmss')}-${Math.floor(Math.random() * 90 + 10)}`;
+      const qriskasRef = (document.getElementById('qriskasRefInput').value || '').trim();
+
+      if (paymentMethod === 'cash') {
+        const received = parseFloat(document.getElementById('cashReceivedInput').value) || 0;
+        if (received > 0 && received < totalBill) {
+          showToast('⚠️ Uang tunai yang diterima kurang!');
+          return;
+        }
+      }
+
+      const txRecord = {
+        id: orderId,
+        time: now.format('HH:mm:ss'),
+        date: now.format('YYYY-MM-DD'),
+        datetime: now.format('dddd, D MMMM YYYY HH:mm'),
+        status: 'PENDING_APPROVAL', // Draft Simulasi
+        items: cart.map(c => ({
+          name: c.item.name,
+          price: c.item.price,
+          qty: c.qty,
+          subtotal: c.item.price * c.qty,
+          tofuPcs: c.item.tofuPcs * c.qty
+        })),
+        totalPrice: totalBill,
+        totalTofuCut: totalTofu,
+        method: paymentMethod === 'qris' ? 'QRISKAS' : 'CASH',
+        qriskasRef: qriskasRef || (paymentMethod === 'qris' ? `QK-${Math.floor(100000 + Math.random() * 900000)}` : null),
+        qrisProof: paymentMethod === 'qris' ? attachedQrisPhoto : null
+      };
+
+      allTransactions.unshift(txRecord);
+      saveTransactionsToStorage();
+      currentLastCompletedOrder = txRecord;
+
+      // Reset Current Order state
+      if (currentPendingQrisId) {
+        qrisPendingQueue = qrisPendingQueue.filter(q => q.id !== currentPendingQrisId);
+        saveQrisPendingQueue();
+        currentPendingQrisId = null;
+      }
+      cart = [];
+      clearQrisPhoto();
+      document.getElementById('cashReceivedInput').value = '';
+      document.getElementById('qriskasRefInput').value = '';
+      renderCart();
+      updateOrderNumber();
+
+      // Show Struk Modal
+      renderSuccessReceipt(txRecord);
+      showToast(`📝 Order ${orderId} tersimpan di Draft Simulasi.`);
+    }
+
+    function renderSuccessReceipt(tx) {
+      document.getElementById('receiptTimeLabel').textContent = `${tx.id} • ${tx.datetime}`;
+      document.getElementById('receiptMethodBadge').textContent = `METODE: ${tx.method}`;
+      document.getElementById('receiptTofuCut').textContent = `POTONG: ${tx.totalTofuCut} PCS TAHU`;
+      document.getElementById('receiptGrandTotal').textContent = `Rp ${tx.totalPrice.toLocaleString('id-ID')}`;
+
+      const refRow = document.getElementById('receiptQriskasRefRow');
+      if (tx.qriskasRef) {
+        document.getElementById('receiptQriskasRefVal').textContent = tx.qriskasRef;
+        refRow.classList.remove('hidden');
+      } else {
+        refRow.classList.add('hidden');
+      }
+
+      const itemsContainer = document.getElementById('receiptItemsContainer');
+      itemsContainer.innerHTML = '';
+      tx.items.forEach(it => {
+        const row = document.createElement('div');
+        row.className = 'flex justify-between items-start';
+        row.innerHTML = `
+          <span>${it.qty}x ${it.name}</span>
+          <span class="shrink-0 font-bold">Rp ${it.subtotal.toLocaleString('id-ID')}</span>
+        `;
+        itemsContainer.appendChild(row);
+      });
+
+      document.getElementById('modalSuccessReceipt').classList.remove('hidden');
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('modalSuccessReceipt').classList.add('hidden');
+    }
+
+    function shareReceiptWhatsApp() {
+      if (!currentLastCompletedOrder) return;
+      const tx = currentLastCompletedOrder;
+      
+      let msg = `*STRUK PEMBELIAN – TAHUNYA KRISPI-YA!* 🍟\n`;
+      msg += `===============================\n`;
+      msg += `No. Transaksi: *${tx.id}*\n`;
+      msg += `Waktu: ${tx.datetime}\n`;
+      msg += `Pembayaran: *${tx.method}* ${tx.qriskasRef ? `(Ref: ${tx.qriskasRef})` : ''}\n`;
+      msg += `-------------------------------\n`;
+      tx.items.forEach(it => {
+        msg += `${it.qty}x ${it.name} = Rp ${it.subtotal.toLocaleString('id-ID')}\n`;
+      });
+      msg += `-------------------------------\n`;
+      msg += `*TOTAL: Rp ${tx.totalPrice.toLocaleString('id-ID')}*\n`;
+      msg += `*Tahu Mentah Terpakai: ${tx.totalTofuCut} pcs*\n`;
+      msg += `===============================\n`;
+      msg += `Terima kasih telah berbelanja di *Tahunya Krispi-ya!* ✨\n`;
+      msg += `_Kerenyahannya Bikin Nagih!_`;
+
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
+
+    // ── 📋 APPROVAL STAGING & SIMULATION MANAGEMENT ───────────────────
+    function openApprovalModal() {
+      const modal = document.getElementById('modalApproval');
+      const pendingDrafts = allTransactions.filter(t => t.status !== 'APPROVED');
+      const tbody = document.getElementById('apprTableBody');
+      tbody.innerHTML = '';
+
+      if (pendingDrafts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">Tidak ada draft yang menunggu persetujuan. Semua transaksi sudah disetujui atau belum ada order.</td></tr>`;
+      } else {
+        pendingDrafts.forEach(t => {
+          const tr = document.createElement('tr');
+          const itemsSummary = t.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+
+          tr.innerHTML = `
+            <td class="p-2.5 font-bold text-slate-800">
+              ${t.time}
+              <span class="block text-[0.65rem] text-slate-400 font-mono">${t.id}</span>
+            </td>
+            <td class="p-2.5 text-slate-600 max-w-[180px] truncate" title="${itemsSummary}">${itemsSummary}</td>
+            <td class="p-2.5 font-black text-amber-800">-${t.totalTofuCut} pcs</td>
+            <td class="p-2.5 font-bold text-slate-700">${t.method}</td>
+            <td class="p-2.5 text-right font-black text-slate-900">Rp ${t.totalPrice.toLocaleString('id-ID')}</td>
+            <td class="p-2.5 text-center">
+              <span class="px-2 py-0.5 rounded-full text-[0.65rem] font-bold bg-amber-100 text-amber-900">
+                Menunggu
+              </span>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeApprovalModal() {
+      document.getElementById('modalApproval').classList.add('hidden');
+    }
+
+    function approveAllPendingDrafts() {
+      const pendingDrafts = allTransactions.filter(t => t.status !== 'APPROVED');
+      if (pendingDrafts.length === 0) {
+        showToast('Tidak ada draft yang perlu disetujui.');
+        return;
+      }
+
+      allTransactions.forEach(t => {
+        if (t.status !== 'APPROVED') {
+          t.status = 'APPROVED';
+          t.approvedAt = dayjs().format('HH:mm:ss');
+        }
+      });
+
+      saveTransactionsToStorage();
+      closeApprovalModal();
+      showToast(`✅ ${pendingDrafts.length} transaksi BERHASIL DISETUJUI & dipotong resmi!`);
+    }
+
+    function shareApprovalRequestWhatsApp() {
+      const pendingDrafts = allTransactions.filter(t => t.status !== 'APPROVED');
+      if (pendingDrafts.length === 0) {
+        showToast('Tidak ada draft yang perlu diajukan approval.');
+        return;
+      }
+
+      const totalTofu = pendingDrafts.reduce((acc, t) => acc + (t.totalTofuCut || 0), 0);
+      const totalOmzet = pendingDrafts.reduce((acc, t) => acc + t.totalPrice, 0);
+      const qrisCount = pendingDrafts.filter(t => t.method === 'QRISKAS').length;
+      const cashCount = pendingDrafts.filter(t => t.method === 'CASH').length;
+      const dateStr = dayjs().locale('id').format('dddd, D MMMM YYYY');
+
+      let msg = `*📋 AJUAN PERSETUJUAN DRAFT POTONGAN TAHU – DSTOCK POS*\n`;
+      msg += `Tanggal: *${dateStr}*\n`;
+      msg += `===============================\n`;
+      msg += `• Total Draft Transaksi: *${pendingDrafts.length} order*\n`;
+      msg += `   └ QRISKas: ${qrisCount} order\n`;
+      msg += `   └ Tunai: ${cashCount} order\n`;
+      msg += `• Total Omzet Draft: *Rp ${totalOmzet.toLocaleString('id-ID')}*\n`;
+      msg += `-------------------------------\n`;
+      msg += `• Total Potongan Tahu: *${totalTofu} pcs* (~${(totalTofu / 121).toFixed(1)} Papan)\n`;
+      msg += `• Simulasi Sisa Tahu: *${Math.max(0, stockData.totalAwalTahu - totalTofu)} pcs*\n`;
+      msg += `===============================\n`;
+      msg += `_Mohon approval untuk memotong stok resmi Google Sheets / DStock._`;
+
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
+
+    function resetSimulationDraft() {
+      const pendingDrafts = allTransactions.filter(t => t.status !== 'APPROVED');
+      if (pendingDrafts.length === 0) {
+        showToast('Tidak ada draft yang perlu direset.');
+        return;
+      }
+
+      if (!confirm('Hapus semua transaksi draft simulasi yang belum disetujui? Data ini tidak akan memotong stok master.')) {
+        return;
+      }
+
+      allTransactions = allTransactions.filter(t => t.status === 'APPROVED');
+      saveTransactionsToStorage();
+      closeApprovalModal();
+      showToast('Draft simulasi berhasil dibersihkan.');
+    }
+
+    // ── Riwayat Transaksi Modal ───────────────────────────────────────
+    function openRiwayatModal() {
+      const modal = document.getElementById('modalRiwayat');
+      document.getElementById('rekapDateLabel').textContent = dayjs().locale('id').format('dddd, D MMMM YYYY');
+
+      const totalOmzet = allTransactions.reduce((acc, t) => acc + t.totalPrice, 0);
+      const totalQris = allTransactions.filter(t => t.method === 'QRISKAS').reduce((acc, t) => acc + t.totalPrice, 0);
+      const totalCash = allTransactions.filter(t => t.method === 'CASH').reduce((acc, t) => acc + t.totalPrice, 0);
+      const totalTofu = allTransactions.reduce((acc, t) => acc + t.totalTofuCut, 0);
+
+      document.getElementById('rekapTotalOmzet').textContent = `Rp ${totalOmzet.toLocaleString('id-ID')}`;
+      document.getElementById('rekapTotalQris').textContent = `Rp ${totalQris.toLocaleString('id-ID')}`;
+      document.getElementById('rekapTotalCash').textContent = `Rp ${totalCash.toLocaleString('id-ID')}`;
+      document.getElementById('rekapTotalTofu').textContent = `${totalTofu} pcs`;
+
+      const tbody = document.getElementById('riwayatTableBody');
+      tbody.innerHTML = '';
+
+      if (allTransactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">Belum ada transaksi di sesi ini.</td></tr>`;
+      } else {
+        allTransactions.forEach(t => {
+          const tr = document.createElement('tr');
+          const itemsSummary = t.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+          const isApproved = t.status === 'APPROVED';
+          const statusBadge = isApproved
+            ? `<span class="px-2 py-0.5 rounded-full text-[0.65rem] font-black bg-emerald-100 text-emerald-800">Resmi</span>`
+            : `<span class="px-2 py-0.5 rounded-full text-[0.65rem] font-bold bg-amber-100 text-amber-900">Draft</span>`;
+
+          const proofBtn = t.qrisProof 
+            ? `<button onclick="viewTxProof('${t.id}')" class="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold text-[0.65rem] inline-flex items-center gap-1">
+                 📸 Lihat
+               </button>`
+            : `<span class="text-slate-300">-</span>`;
+
+          tr.innerHTML = `
+            <td class="p-2.5 font-bold text-slate-800">
+              ${t.time}
+              <span class="block text-[0.65rem] text-slate-400 font-mono">${t.id}</span>
+            </td>
+            <td class="p-2.5 text-slate-600 max-w-[180px] truncate" title="${itemsSummary}">${itemsSummary}</td>
+            <td class="p-2.5 font-black text-teal-800">${t.totalTofuCut} pcs</td>
+            <td class="p-2.5">
+              <span class="px-1.5 py-0.5 rounded font-black text-[0.65rem] ${t.method === 'QRISKAS' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}">
+                ${t.method}
+              </span>
+              ${t.qriskasRef ? `<span class="block text-[0.62rem] text-slate-400 font-mono">${t.qriskasRef}</span>` : ''}
+            </td>
+            <td class="p-2.5 text-right font-black text-slate-900">Rp ${t.totalPrice.toLocaleString('id-ID')}</td>
+            <td class="p-2.5 text-center">${statusBadge}</td>
+            <td class="p-2.5 text-center">${proofBtn}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeRiwayatModal() {
+      document.getElementById('modalRiwayat').classList.add('hidden');
+    }
+
+    function viewTxProof(txId) {
+      const tx = allTransactions.find(t => t.id === txId);
+      if (tx && tx.qrisProof) {
+        document.getElementById('modalQrisImg').src = tx.qrisProof;
+        document.getElementById('modalQrisPreview').classList.remove('hidden');
+      }
+    }
+
+    function exportRekapWhatsApp() {
+      const dateStr = dayjs().locale('id').format('dddd, D MMMM YYYY');
+      const totalOmzet = allTransactions.reduce((acc, t) => acc + t.totalPrice, 0);
+      const totalQris = allTransactions.filter(t => t.method === 'QRISKAS').reduce((acc, t) => acc + t.totalPrice, 0);
+      const totalCash = allTransactions.filter(t => t.method === 'CASH').reduce((acc, t) => acc + t.totalPrice, 0);
+      const totalTofu = allTransactions.reduce((acc, t) => acc + t.totalTofuCut, 0);
+
+      let msg = `*📊 REKAP LAPORAN KASIR POS – TAHUNYA KRISPI-YA!* 🍟\n`;
+      msg += `Tanggal: ${dateStr}\n`;
+      msg += `===============================\n`;
+      msg += `• Total Transaksi: *${allTransactions.length} order*\n`;
+      msg += `• Total Omzet: *Rp ${totalOmzet.toLocaleString('id-ID')}*\n`;
+      msg += `   └ Tunai: Rp ${totalCash.toLocaleString('id-ID')}\n`;
+      msg += `   └ QRISKas: Rp ${totalQris.toLocaleString('id-ID')}\n`;
+      msg += `-------------------------------\n`;
+      msg += `• Tahu Terjual: *${totalTofu} pcs* (~${(totalTofu / 121).toFixed(1)} Papan)\n`;
+      msg += `• Sisa Tahu Berjalan: *${Math.max(0, stockData.totalAwalTahu - totalTofu)} pcs*\n`;
+      msg += `===============================\n`;
+      msg += `_Laporan dikirim otomatis dari DStock POS App_`;
+
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
+
+    // ── Menu Manager Modal ─────────────────────────────────────────────
+    function openMenuManagerModal() {
+      renderMenuManagerList();
+      resetMenuForm();
+      document.getElementById('modalMenuManager').classList.remove('hidden');
+    }
+
+    function closeMenuManagerModal() {
+      document.getElementById('modalMenuManager').classList.add('hidden');
+    }
+
+    function renderMenuManagerList() {
+      const container = document.getElementById('menuManagerList');
+      container.innerHTML = '';
+
+      menuItems.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50';
+
+        row.innerHTML = `
+          <div>
+            <h5 class="font-extrabold text-slate-800">${item.name}</h5>
+            <p class="text-[0.68rem] text-slate-500">
+              Rp ${item.price.toLocaleString('id-ID')} &bull; Potong ${item.tofuPcs} pcs tahu
+            </p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="editMenuItem('${item.id}')" class="p-1 text-teal-700 hover:bg-teal-50 rounded font-bold" title="Edit">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+            </button>
+            <button onclick="deleteMenuItem('${item.id}')" class="p-1 text-red-600 hover:bg-red-50 rounded font-bold" title="Hapus">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function handleSaveMenuItem(e) {
+      e.preventDefault();
+      const id = document.getElementById('menuFormId').value;
+      const name = document.getElementById('menuFormName').value.trim();
+      const cat = document.getElementById('menuFormCat').value;
+      const price = parseFloat(document.getElementById('menuFormPrice').value) || 0;
+      const tofuPcs = parseInt(document.getElementById('menuFormTofu').value, 10) || 0;
+
+      if (!name) return;
+
+      if (id) {
+        const target = menuItems.find(m => m.id === id);
+        if (target) {
+          target.name = name;
+          target.cat = cat;
+          target.price = price;
+          target.tofuPcs = tofuPcs;
+        }
+      } else {
+        menuItems.push({
+          id: 'm_' + Date.now(),
+          name,
+          cat,
+          price,
+          tofuPcs
+        });
+      }
+
+      saveMenuToStorage();
+      renderMenuManagerList();
+      resetMenuForm();
+      showToast('Menu berhasil diperbarui.');
+    }
+
+    function editMenuItem(id) {
+      const item = menuItems.find(m => m.id === id);
+      if (!item) return;
+
+      document.getElementById('menuFormId').value = item.id;
+      document.getElementById('menuFormName').value = item.name;
+      document.getElementById('menuFormCat').value = item.cat || 'paket';
+      document.getElementById('menuFormPrice').value = item.price;
+      document.getElementById('menuFormTofu').value = item.tofuPcs;
+    }
+
+    function deleteMenuItem(id) {
+      if (!confirm('Hapus menu ini dari daftar kasir?')) return;
+      menuItems = menuItems.filter(m => m.id !== id);
+      saveMenuToStorage();
+      renderMenuManagerList();
+      showToast('Menu dihapus.');
+    }
+
+    function resetMenuForm() {
+      document.getElementById('menuFormId').value = '';
+      document.getElementById('menuFormName').value = '';
+      document.getElementById('menuFormPrice').value = '';
+      document.getElementById('menuFormTofu').value = '';
+    }
+
+    function restoreDefaultMenu() {
+      if (!confirm('Kembalikan menu ke daftar standar Tahunya Krispi-ya!?')) return;
+      menuItems = [...DEFAULT_MENU_ITEMS];
+      saveMenuToStorage();
+      renderMenuManagerList();
+      showToast('Menu standar berhasil dipulihkan.');
+    }
+
+    // ── Toast Helper ───────────────────────────────────────────────────
+    let toastTimeout;
+    function showToast(msg) {
+      const toast = document.getElementById('posToast');
+      const content = document.getElementById('posToastContent');
+      content.textContent = msg;
+
+      toast.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+      }, 2500);
+    }
+
+    // ── 📱 React Native Native Shell Bridge ────────────────────────────
+    function handleNativeBackPress() {
+      const liveCam = document.getElementById('modalLiveCamera');
+      const cartDrawer = document.getElementById('cartPanelDrawer');
+      const previewQris = document.getElementById('modalQrisPreview');
+      const receipt = document.getElementById('modalSuccessReceipt');
+      const approval = document.getElementById('modalApproval');
+      const riwayat = document.getElementById('modalRiwayat');
+      const menuMgr = document.getElementById('modalMenuManager');
+      const qrisPending = document.getElementById('modalQrisPending');
+      const qrisZoom = document.getElementById('modalQrisDetailZoom');
+
+      if (qrisZoom && !qrisZoom.classList.contains('hidden')) {
+        closeQrisDetailZoom();
+        return;
+      }
+      if (qrisPending && !qrisPending.classList.contains('hidden')) {
+        closeQrisPendingModal();
+        return;
+      }
+
+      if (liveCam && !liveCam.classList.contains('hidden')) {
+        closeLiveCamera();
+        return;
+      }
+      if (previewQris && !previewQris.classList.contains('hidden')) {
+        closeQrisPreviewModal();
+        return;
+      }
+      if (receipt && !receipt.classList.contains('hidden')) {
+        closeReceiptModal();
+        return;
+      }
+      if (approval && !approval.classList.contains('hidden')) {
+        closeApprovalModal();
+        return;
+      }
+      if (riwayat && !riwayat.classList.contains('hidden')) {
+        closeRiwayatModal();
+        return;
+      }
+      if (menuMgr && !menuMgr.classList.contains('hidden')) {
+        closeMenuManagerModal();
+        return;
+      }
+      if (cartDrawer && cartDrawer.classList.contains('open')) {
+        toggleMobileCart(false);
+        return;
+      }
+
+      // If nothing is open, notify native wrapper
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ALLOW_EXIT' }));
+      }
+    }
+
+    window.addEventListener('message', function(event) {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data && data.type === 'ANDROID_BACK') {
+          handleNativeBackPress();
+        }
+      } catch (e) {}
+    });
+    document.addEventListener('message', function(event) {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data && data.type === 'ANDROID_BACK') {
+          handleNativeBackPress();
+        }
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "DStock POS Kasir - Tahunya Krispi-ya!",
+  "short_name": "DStock Kasir",
+  "description": "Aplikasi Kasir POS Cepat & Simulasi Potong Stok Tahu Tahunya Krispi-ya!",
+  "start_url": "/pos",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f766e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/Images/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/Images/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

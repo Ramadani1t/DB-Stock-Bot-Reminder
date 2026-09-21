@@ -1,0 +1,22 @@
+buildscript {
+    ext {
+        buildToolsVersion = "33.0.2"
+        minSdkVersion = 33
+        compileSdkVersion = 33
+        targetSdkVersion = 33
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.2.2")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
