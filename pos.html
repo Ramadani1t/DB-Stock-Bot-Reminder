@@ -1045,7 +1045,7 @@
       const h = video.videoHeight;
       let targetW = w;
       let targetH = h;
-      const maxSide = 1000;
+      const maxSide = 1200;
 
       if (targetW > targetH && targetW > maxSide) {
         targetH = Math.round((targetH * maxSide) / targetW);
@@ -1548,21 +1548,95 @@
       showToast(`📸 Kamera Hardware: Foto QRIS tercatat (Jam ${capturedTime})!`);
     };
 
-    // ── ⚡ QUICK QRIS LIVE HARDWARE CAMERA & SNAP HANDLING ─────────────
+    // ─── 📸 QUICK QRIS LIVE HARDWARE CAMERA & SNAP HANDLING ────────────────
     let liveCameraStream = null;
     let currentCameraFacing = 'environment'; // Default kamera belakang hardware
     let isTorchOn = false;
 
-    async function openLiveCamera() {
-      // Prioritas 0: Native Hardware Rear Camera via AndroidBridge
-      if (window.AndroidBridge && typeof window.AndroidBridge.openHardwareCamera === 'function') {
-        window.AndroidBridge.openHardwareCamera();
-        return;
+    // Deteksi seluruh perangkat input video (kamera HP)
+    async function getAllVideoInputDevices() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        return devices.filter(d => d.kind === 'videoinput');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    // Algoritma Multi-Tier Hardware Camera Stream (Sesuai Standar QRISKas)
+    async function getHardwareCameraStream(targetMode) {
+      let devices = await getAllVideoInputDevices();
+      const constraintsList = [];
+
+      if (devices.length > 0) {
+        if (targetMode === 'environment') {
+          // Filter kamera belakang berdasarkan keyword hardware
+          const backDevs = devices.filter(d => {
+            const l = (d.label || '').toLowerCase();
+            return l.includes('back') || l.includes('rear') || l.includes('environment') ||
+                   l.includes('belakang') || l.includes('camera2 0') || l.includes('0, facing back') ||
+                   l.includes('main') || (!l.includes('front') && !l.includes('user') && !l.includes('depan') && !l.includes('selfie') && !l.includes('1'));
+          });
+          for (const b of backDevs) {
+            if (b.deviceId) constraintsList.push({ video: { deviceId: { exact: b.deviceId } }, audio: false });
+          }
+        } else {
+          // Filter kamera depan
+          const frontDevs = devices.filter(d => {
+            const l = (d.label || '').toLowerCase();
+            return l.includes('front') || l.includes('user') || l.includes('depan') || l.includes('selfie') || l.includes('1, facing front');
+          });
+          for (const f of frontDevs) {
+            if (f.deviceId) constraintsList.push({ video: { deviceId: { exact: f.deviceId } }, audio: false });
+          }
+        }
       }
 
+      // Fallback constraints bertingkat
+      if (targetMode === 'environment') {
+        constraintsList.push({ video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        constraintsList.push({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        constraintsList.push({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      } else {
+        constraintsList.push({ video: { facingMode: { exact: 'user' } }, audio: false });
+        constraintsList.push({ video: { facingMode: 'user' }, audio: false });
+        constraintsList.push({ video: { facingMode: { ideal: 'user' } }, audio: false });
+      }
+
+      let lastError = null;
+      for (const c of constraintsList) {
+        try {
+          const s = await navigator.mediaDevices.getUserMedia(c);
+          return s;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      // Fallback tahap 3: Permulaan stream sederhana lalu enumerasi ulang deviceId
+      try {
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        tempStream.getTracks().forEach(t => t.stop());
+        devices = await getAllVideoInputDevices();
+        const backDev = devices.find(d => {
+          const l = (d.label || '').toLowerCase();
+          return l.includes('back') || l.includes('rear') || l.includes('environment') || l.includes('belakang') || l.includes('camera2 0') || l.includes('0, facing back');
+        });
+        if (backDev && backDev.deviceId) {
+          return await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: backDev.deviceId } }, audio: false });
+        }
+      } catch (err2) {
+        lastError = err2;
+      }
+
+      throw lastError || new Error('Kamera belakang tidak dapat diakses.');
+    }
+
+    async function openLiveCamera() {
       const modal = document.getElementById('modalLiveCamera');
       const video = document.getElementById('liveCameraVideo');
-      
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         triggerNativeFileInput();
         return;
@@ -1571,44 +1645,30 @@
       try {
         stopCameraTracks();
         isTorchOn = false;
-        modal.classList.remove('hidden');
+        if (modal) modal.classList.remove('hidden');
 
-        let stream = null;
-        // Prioritas 1: Kamera belakang perangkat fisik (exact environment)
-        if (currentCameraFacing === 'environment') {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                facingMode: { exact: 'environment' },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-              },
-              audio: false
-            });
-          } catch (e1) {
-            console.log('Exact environment not available, using ideal environment fallback');
-          }
-        }
-
-        // Prioritas 2: Ideal facing mode
-        if (!stream) {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: currentCameraFacing },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            },
-            audio: false
-          });
-        }
-
+        const stream = await getHardwareCameraStream(currentCameraFacing);
         liveCameraStream = stream;
         video.srcObject = liveCameraStream;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
         await video.play();
+
+        // Continuous autofocus jika didukung hardware
+        try {
+          const track = stream.getVideoTracks()[0];
+          if (track && typeof track.getCapabilities === 'function') {
+            const caps = track.getCapabilities();
+            if (caps.focusMode && Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+              await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+            }
+          }
+        } catch (_) {}
 
         checkTorchSupport();
       } catch (err) {
-        console.warn('Live camera access error, falling back to file picker:', err);
+        console.warn('Live in-app camera error, falling back to hardware native camera:', err);
         closeLiveCamera();
         triggerNativeFileInput();
       }
@@ -1644,7 +1704,7 @@
           btnTorch.classList.toggle('text-amber-400', isTorchOn);
           btnTorch.classList.toggle('bg-amber-400/20', isTorchOn);
         }
-        showToast(isTorchOn ? '💡 Senter Aktif' : '💡 Senter Mati');
+        showToast(isTorchOn ? '🔦 Senter Aktif' : '🔦 Senter Mati');
       } catch (e) {
         console.warn('Failed to toggle torch:', e);
       }
@@ -1687,7 +1747,7 @@
       const h = video.videoHeight;
       let targetW = w;
       let targetH = h;
-      const maxSide = 1000;
+      const maxSide = 1200; // Kualitas HD jernih
 
       if (targetW > targetH && targetW > maxSide) {
         targetH = Math.round((targetH * maxSide) / targetW);
@@ -1702,34 +1762,35 @@
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, targetW, targetH);
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85); // Kualitas tajam 85%
       attachedQrisPhoto = dataUrl;
 
       closeLiveCamera();
       showAttachedQrisBanner(dataUrl);
       setPaymentMethod('qris');
       generateQriskasRef();
-      showToast('📸 Foto Bukti QRIS Terlampir! Silakan pilih menu.');
+      showToast('📸 Foto Bukti QRIS Terlampir (HD)! Silakan pilih menu.');
     }
 
     function triggerNativeFileInput() {
+      closeLiveCamera();
       if (window.AndroidBridge && typeof window.AndroidBridge.openHardwareCamera === 'function') {
         window.AndroidBridge.openHardwareCamera();
         return;
       }
-      closeLiveCamera();
-      document.getElementById('qrisCameraInput').click();
+      const input = document.getElementById('qrisCameraInput');
+      if (input) input.click();
     }
 
-    function triggerQrisSnap() {
-      if (window.AndroidBridge && typeof window.AndroidBridge.openHardwareCamera === 'function') {
+    function triggerQrisSnap(mode) {
+      if (mode === 'native' && window.AndroidBridge && typeof window.AndroidBridge.openHardwareCamera === 'function') {
         window.AndroidBridge.openHardwareCamera();
         return;
       }
       openLiveCamera();
     }
 
-    function handleQrisPhotoCaptured(event) {
+function handleQrisPhotoCaptured(event) {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
 
@@ -1755,7 +1816,7 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          attachedQrisPhoto = canvas.toDataURL('image/jpeg', 0.82);
+          attachedQrisPhoto = canvas.toDataURL('image/jpeg', 0.85);
           showAttachedQrisBanner(attachedQrisPhoto);
           setPaymentMethod('qris');
           generateQriskasRef(); // Otomatis buat ref jika belum ada
@@ -2518,6 +2579,40 @@
         }
       } catch (e) {}
     });
-  </script>
+  
+    // ─── 📶 OFFLINE-FIRST NETWORK SYNC HANDLER ──────────────────────────────
+    function updateNetworkStatus() {
+      const isOnline = navigator.onLine;
+      let offlineBanner = document.getElementById('offlineStatusBanner');
+      if (!offlineBanner) {
+        offlineBanner = document.createElement('div');
+        offlineBanner.id = 'offlineStatusBanner';
+        offlineBanner.className = 'fixed top-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full text-[0.7rem] font-extrabold shadow-lg transition-all duration-300 pointer-events-none flex items-center gap-1.5';
+        document.body.appendChild(offlineBanner);
+      }
+
+      if (!isOnline) {
+        offlineBanner.className = 'fixed top-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full text-[0.7rem] font-extrabold shadow-lg transition-all duration-300 pointer-events-none flex items-center gap-1.5 bg-amber-500 text-amber-950';
+        offlineBanner.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-950 animate-pulse"></span><span>Mode Offline (Data & Struk Tersimpan di HP)</span>';
+        offlineBanner.style.opacity = '1';
+      } else {
+        offlineBanner.className = 'fixed top-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full text-[0.7rem] font-extrabold shadow-lg transition-all duration-300 pointer-events-none flex items-center gap-1.5 bg-emerald-600 text-white';
+        offlineBanner.innerHTML = '<span class="w-2 h-2 rounded-full bg-white"></span><span>Online (Siap Sinkron ke Cloud)</span>';
+        setTimeout(() => {
+          if (navigator.onLine && offlineBanner) {
+            offlineBanner.style.opacity = '0';
+          }
+        }, 3000);
+        if (typeof fetchStockInfo === 'function') {
+          fetchStockInfo();
+        }
+      }
+    }
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    setTimeout(updateNetworkStatus, 1500);
+
+</script>
 </body>
 </html>
