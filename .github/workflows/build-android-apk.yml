@@ -30,6 +30,7 @@ jobs:
         run: |
           export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           echo "sdk.dir=$ANDROID_HOME" > mobile/android/local.properties
           echo "Using Android SDK at: $ANDROID_HOME"
           yes | sdkmanager --licenses || true

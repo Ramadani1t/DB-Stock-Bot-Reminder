@@ -1,4 +1,4 @@
-﻿# 📱 DStock POS Kasir — Mobile Android App (Android Studio & Native WebView Shell)
+# 📱 DStock POS Kasir — Mobile Android App (Android Studio & Native WebView Shell)
 
 Aplikasi kasir mobile native untuk **Tahunya Krispi-ya!** yang dioptimalkan untuk ukuran file sangat kecil (**~5-10 MB**), waktu cold-start di bawah 1 detik (**sat-set**), serta akses langsung ke **hardware kamera belakang** untuk jepret bukti QRIS / QRISKas secara instan dengan resolusi penuh (Full HD).
 

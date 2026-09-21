@@ -1,4 +1,4 @@
-﻿package com.dstock.pos;
+package com.dstock.pos;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
